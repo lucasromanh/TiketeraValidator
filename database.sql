@@ -2,17 +2,21 @@
 CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(50) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    pin VARCHAR(10) NOT NULL,
-    role VARCHAR(20) NOT NULL -- 'ADMIN', 'STAFF', 'ASSISTANT'
+    pin VARCHAR(10) NULL,
+    role VARCHAR(20) NOT NULL, -- 'ADMIN', 'STAFF', 'ASSISTANT'
+    email VARCHAR(100) NULL,
+    isActive BOOLEAN DEFAULT TRUE
 );
 
 -- TABLA DE EVENTOS
 CREATE TABLE IF NOT EXISTS events (
     id VARCHAR(50) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    date DATETIME NOT NULL,
+    date DATETIME NOT NULL, -- mapea a dateTimeStart
+    dateTimeEnd DATETIME NULL,
     venue VARCHAR(100) NOT NULL,
-    operation_type VARCHAR(50) NOT NULL -- 'BOLICHE', 'EVENTO', etc.
+    operation_type VARCHAR(50) NOT NULL,
+    status VARCHAR(20) DEFAULT 'ACTIVE'
 );
 
 -- TABLA DE TICKETS
@@ -31,41 +35,26 @@ CREATE TABLE IF NOT EXISTS tickets (
     FOREIGN KEY (ownerUserId) REFERENCES users(id)
 );
 
--- TABLA DE LOGS DE ESCANEO
-CREATE TABLE IF NOT EXISTS scan_logs (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    result VARCHAR(20) NOT NULL,
-    reason VARCHAR(50),
-    operationType VARCHAR(50),
-    mode VARCHAR(50),
-    gate VARCHAR(50),
-    staffUserId VARCHAR(50),
-    ticketCode VARCHAR(100)
-);
+-- Limpiar tablas si existen datos previos (para re-importar limpio)
+TRUNCATE TABLE tickets;
+DELETE FROM events;
+DELETE FROM users;
 
--- INSTALACIÓN DE DATOS MOCK (Iguales a constants.tsx)
-
--- 1. USUARIOS
-INSERT INTO users (id, name, pin, role) VALUES 
-('U1', 'Lucas Admin', '1234', 'ADMIN'),
-('U2', 'Staff Barra', '0000', 'STAFF'),
-('U3', 'Juan Perez', '1111', 'ASSISTANT'),
-('U4', 'Maria Garcia', '2222', 'ASSISTANT');
+-- 1. USUARIOS (Datos del Usuario)
+INSERT INTO users (id, name, email, role, isActive, pin) VALUES 
+('u1', 'Celeste Peralta', 'celeste@test.com', 'ASSISTANT', 1, NULL),
+('s1', 'Staff Validador', NULL, 'STAFF', 1, '5555'),
+('a1', 'Super Admin', NULL, 'ADMIN', 1, '1234');
 
 -- 2. EVENTOS
-INSERT INTO events (id, name, date, venue, operation_type) VALUES
-('EV1', 'Amanecer Bailable', '2026-02-14 23:00:00', 'Club Central', 'BOLICHE'),
-('EV2', 'Tech Conference', '2026-03-20 09:00:00', 'Centro Convenciones', 'EVENTO_GRANDE'),
-('EV3', 'Cinema Night', '2026-01-15 20:00:00', 'Cine Hoyts', 'CINE');
+INSERT INTO events (id, operation_type, name, venue, date, dateTimeEnd, status) VALUES
+('e1', 'BOLICHE', 'Fiesta Noche Retro 90s', 'Salta Capital', '2024-06-15 23:30:00', '2024-06-16 06:00:00', 'ACTIVE'),
+('e2', 'CINE', 'The Batman: Estreno', 'Cine Hoyts Salta', '2024-06-22 20:00:00', '2024-06-22 23:00:00', 'UPCOMING');
 
 -- 3. TICKETS
-INSERT INTO tickets (id, eventId, code, ownerUserId, status, type, metadata_detail) VALUES 
--- Juan Perez Tickets
-('T1', 'EV1', 'TICKET-001', 'U3', 'VALID', 'ENTRY', 'Acceso General'),
-('T2', 'EV1', 'TICKET-002', 'U3', 'VALID', 'DRINK', 'Trago: Fernet'),
-('T3', 'EV1', 'TICKET-003', 'U3', 'VALID', 'VIP', 'Acceso VIP'),
-
--- Maria Garcia Tickets
-('T4', 'EV2', 'TICKET-004', 'U4', 'VALID', 'ENTRY', 'Full Pass'),
-('T5', 'EV3', 'TICKET-005', 'U4', 'VALID', 'POPCORN', 'Combo Pochoclos');
+INSERT INTO tickets (id, eventId, code, ownerUserId, status, type, metadata_detail, usedAt, usedInMode) VALUES 
+-- Celeste Peralta Tickets
+('t1', 'e1', 'ENTRY-90S-SALTA', 'u1', 'VALID', 'ENTRY', 'Acceso General', NULL, NULL),
+('t2', 'e1', 'DRK-FERNET-01', 'u1', 'VALID', 'DRINK', 'FERNET CON COCA', NULL, NULL),
+('t3', 'e1', 'DRK-FERNET-02', 'u1', 'VALID', 'DRINK', 'FERNET CON COCA', NULL, NULL),
+('t4', 'e1', 'USED-DRK-BEER', 'u1', 'USED', 'DRINK', 'CERVEZA', '2024-06-15 23:45:00', 'DRINK');

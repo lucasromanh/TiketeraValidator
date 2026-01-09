@@ -14,8 +14,11 @@ export const api = {
         return res.json();
     },
 
-    async getInitialData(userId: string) {
-        const res = await fetch(`${API_URL}/get_data.php?userId=${userId}`);
+    async getInitialData(userId: string, role?: string) {
+        const url = role
+            ? `${API_URL}/get_data.php?userId=${userId}&role=${role}`
+            : `${API_URL}/get_data.php?userId=${userId}`;
+        const res = await fetch(url);
         return res.json();
     },
 

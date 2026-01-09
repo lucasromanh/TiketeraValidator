@@ -1,4 +1,3 @@
-
 import { OperationType, UserRole, TicketType, TicketStatus, User, EventSession, Ticket } from './types';
 
 export const MOCK_USERS: User[] = [
@@ -7,7 +6,8 @@ export const MOCK_USERS: User[] = [
     name: 'Celeste Peralta',
     email: 'celeste@test.com',
     role: UserRole.ASSISTANT,
-    isActive: true
+    isActive: true,
+    pin: '0000' // Default fake pin for testing
   },
   {
     id: 's1',
