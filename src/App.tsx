@@ -287,24 +287,35 @@ const AssistantView: React.FC<any> = ({ currentUser, logout, myTickets, events, 
       <AnimatePresence>
         {viewingTicket && (
           <motion.div
-            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+            initial={{ y: '100%', opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: '100%', opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             className="fixed inset-0 z-50 bg-white text-black flex flex-col"
           >
             <div className="p-6 flex justify-end">
-              <button onClick={() => setViewingTicket(null)} className="text-xs font-black uppercase tracking-widest text-slate-400 px-4 py-2">
+              <button onClick={() => setViewingTicket(null)} className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-4 py-2 hover:text-black transition-colors">
                 CERRAR [X]
               </button>
             </div>
 
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-8">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.3em] text-blue-600 mb-2">Identificador Digital</p>
-                <h2 className="text-4xl font-black italic tracking-tighter leading-none">{events.find((e: any) => e.id === viewingTicket.eventId)?.name}</h2>
-                <div className="w-12 h-1 bg-blue-600 mx-auto mt-4 rounded-full" />
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mt-4">{viewingTicket.metadata?.detail}</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600 mb-3">Identificador Digital</p>
+                <h2 className="text-5xl font-black italic tracking-tighter leading-[0.9] text-black">
+                  {events.find((e: any) => e.id === viewingTicket.eventId)?.name}
+                </h2>
+                <div className="w-8 h-1 bg-blue-600 mx-auto mt-6 rounded-full" />
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mt-4">
+                  {viewingTicket.metadata?.detail || 'ACCESO GENERAL'}
+                </p>
               </div>
 
-              <div className="p-4 bg-white rounded-[40px] shadow-2xl border-4 border-black relative">
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 10 }}
+                className="p-4 bg-white rounded-[40px] shadow-2xl border-4 border-black relative cursor-pointer"
+              >
                 {/* Decorative corners */}
                 <div className="absolute -top-3 -left-3 w-6 h-6 bg-white border-4 border-black rounded-full z-10" />
                 <div className="absolute -top-3 -right-3 w-6 h-6 bg-white border-4 border-black rounded-full z-10" />
@@ -312,12 +323,19 @@ const AssistantView: React.FC<any> = ({ currentUser, logout, myTickets, events, 
                 <div className="absolute -bottom-3 -right-3 w-6 h-6 bg-white border-4 border-black rounded-full z-10" />
 
                 <QRCodeSVG value={`ticket:${viewingTicket.code}`} size={240} className="relative z-0" />
-              </div>
+              </motion.div>
 
-              <div className="px-6 py-3 bg-slate-100 rounded-full flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-[10px] text-white font-bold">✓</div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-600">Validación Segura</span>
-              </div>
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="px-8 py-3 bg-slate-100 rounded-full flex items-center gap-3 shadow-inner"
+              >
+                <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shadow-lg shadow-green-500/30">
+                  <CheckCircle size={12} className="text-white" strokeWidth={4} />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Validación Segura</span>
+              </motion.div>
             </div>
           </motion.div>
         )}
