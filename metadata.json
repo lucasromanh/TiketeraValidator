@@ -1,0 +1,7 @@
+{
+  "name": "MiraSoleHiceElMio",
+  "description": "Professional QR Access System for events, clubs, and cinemas with atomic validation and spectacular visual feedback.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
