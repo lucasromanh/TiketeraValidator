@@ -3,7 +3,8 @@ import {
   OperationType, UserRole, TicketStatus, User, EventSession, Ticket, TicketType
 } from './types';
 import {
-  QrCode, LogOut, ChevronRight, Ticket as TicketIcon, GlassWater, UserCircle
+  QrCode, LogOut, ChevronRight, Ticket as TicketIcon, GlassWater, UserCircle,
+  Camera, History, LayoutGrid, Zap, Settings, ArrowLeft, CheckCircle, XCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AnimationOverlay } from './components/AnimationOverlay';
@@ -350,49 +351,234 @@ const StaffView: React.FC<any> = ({
   animStatus, animReason, animDetails, setAnimStatus,
   activeMode, setActiveMode, cooldown, handleValidate, currentUser
 }) => {
-  // ... STAFF VIEW IMPLEMENTATION SIMPLIFIED FOR LENGTH BUT FUNCTIONAL ...
-  // (Mantengo la estructura funcional de Staff, que al ser interna no es el foco del reclamo estético principal del "Dashboard Usuario", pero le doy un toque de estilo coherente)
+  const [activeTab, setActiveTab] = useState<'CAMERA' | 'AUDIT' | 'STATS'>('CAMERA');
+
+  // Calculate mock stats based on available data for now
+  // In a real app these should come from the backend per event
+  const stats = {
+    ok: 0, // This would need backend support for session specific counts
+    fail: 0,
+    used: 0,
+    wrongEvent: 0,
+    notFound: 0,
+    rateLimit: 0
+  };
+
+  const selectedEvent = events.find((e: EventSession) => e.id === selectedEventId);
+
   return (
-    <div className="min-h-screen flex flex-col bg-slate-900 text-white selection:bg-blue-500/30">
+    <div className="min-h-screen flex flex-col bg-[#0f172a] text-white">
       <AnimationOverlay status={animStatus} reason={animReason} details={animDetails} onFinished={() => setAnimStatus(null)} />
-      <div className="p-4 flex justify-between items-center border-b border-white/5 bg-slate-900/50 backdrop-blur-md sticky top-0 z-10">
-        <button onClick={() => setSelectedEventId(null)} className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-95"><ChevronRight className="rotate-180" size={20} /></button>
-        <div className="text-center">
-          <h2 className="font-black uppercase text-sm tracking-widest text-blue-500">{opProfile}</h2>
-          <p className="text-[10px] text-slate-500 font-bold">STAFF: {currentUser?.name}</p>
+
+      {/* HEADER */}
+      <div className="px-4 py-4 flex justify-between items-center bg-[#0f172a] sticky top-0 z-20">
+        {!selectedEventId ? (
+          <div className="flex flex-col">
+            <h1 className="font-black italic text-lg text-white leading-none">MIRA <span className="text-white">SOLE</span></h1>
+            <h2 className="text-xs font-bold text-blue-500 uppercase tracking-widest leading-none mt-1">{opProfile?.replace('_', ' ')}</h2>
+          </div>
+        ) : (
+          <button onClick={() => setSelectedEventId(null)} className="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center border border-slate-700 active:scale-95">
+            <ArrowLeft size={20} className="text-white" />
+          </button>
+        )}
+
+        {selectedEventId && (
+          <div className="flex flex-col items-center">
+            <h2 className="font-black italic text-sm text-white uppercase tracking-tighter">{selectedEvent?.name}</h2>
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">GATE A</span>
+              <span className="text-[10px] text-slate-600">•</span>
+              <span className="text-[10px] font-bold text-purple-400 uppercase tracking-widest">{activeMode}</span>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_#22c55e]" />
+          <button onClick={logout} className="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center border border-slate-700 text-yellow-500">
+            <Settings size={18} />
+          </button>
         </div>
-        <button onClick={logout} className="w-10 h-10 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center border border-red-500/20"><LogOut size={16} /></button>
       </div>
 
+      {/* CONTENT */}
       {!selectedEventId ? (
-        <div className="p-6 space-y-4">
-          <h2 className="text-xl font-black italic tracking-tighter mb-6">SELECCIONAR EVENTO</h2>
-          {events.map((ev: EventSession) => (
-            <button key={ev.id} onClick={() => setSelectedEventId(ev.id)} className="w-full p-6 bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 rounded-3xl text-left hover:border-blue-500/50 transition-all shadow-xl">
-              <h3 className="font-bold text-lg text-white mb-1">{ev.name}</h3>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{ev.venue}</p>
-            </button>
-          ))}
+        <div className="flex-1 p-6 flex flex-col">
+          <h2 className="text-3xl font-black text-white mb-2">SESIONES</h2>
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-8">SELECCIONA EVENTO ACTIVO</p>
+          <div className="w-12 h-1 bg-blue-600 rounded-full mb-8" />
+
+          <div className="space-y-4">
+            {events.map((ev: EventSession) => (
+              <div key={ev.id} className="bg-[#1e293b] p-6 rounded-[32px] border border-slate-700/50 shadow-xl relative overflow-hidden group">
+                <div className="relative z-10">
+                  <h3 className="font-black text-xl text-white mb-1">{ev.name}</h3>
+                  <div className="flex items-center gap-2 mb-6">
+                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{ev.venue}</p>
+                  </div>
+
+                  <button
+                    onClick={() => setSelectedEventId(ev.id)}
+                    className="w-full py-4 bg-slate-800/50 border border-blue-500/20 rounded-2xl flex items-center justify-between px-6 hover:bg-blue-600/10 hover:border-blue-500/50 transition-all"
+                  >
+                    <span className="text-xs font-black uppercase tracking-widest text-blue-400">LISTO PARA VALIDAR</span>
+                    <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
+                      <ChevronRight size={14} className="text-slate-400" />
+                    </div>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col p-6 items-center justify-center space-y-8">
-          <div className="w-full space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4">Modo Validación</label>
-            <select value={activeMode} onChange={e => setActiveMode(e.target.value)} className="w-full bg-slate-800 p-4 rounded-2xl font-bold text-white border border-slate-700 outline-none focus:border-blue-500 appearance-none">
-              {Object.values(OPERATION_MODES[opProfile as OperationType] || []).map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-            </select>
-          </div>
+        <div className="flex-1 flex flex-col relative overflow-hidden">
+          {/* TAB CONTENT */}
+          {activeTab === 'CAMERA' && (
+            <div className="flex-1 flex flex-col items-center justify-center p-6 pb-32">
+              {/* SELECTORS */}
+              <div className="w-full flex gap-4 mb-8">
+                <div className="flex-1 space-y-2">
+                  <label className="text-[10px] font-black text-blue-200 uppercase tracking-widest ml-2">Punto de Control</label>
+                  <div className="w-full h-12 rounded-2xl border border-blue-500/30 bg-slate-900/50 flex items-center justify-center text-xs font-black uppercase text-white">
+                    {activeMode}
+                  </div>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Ubicación / Gate</label>
+                  <select className="w-full h-12 rounded-2xl border border-slate-700 bg-slate-800 text-center text-xs font-black uppercase text-white outline-none appearance-none">
+                    <option>PUERTA A</option>
+                  </select>
+                </div>
+              </div>
 
-          <div className="bg-black p-2 rounded-[44px] border-4 border-slate-700 shadow-2xl relative">
-            <div className="rounded-[36px] overflow-hidden border border-white/20 relative w-[300px] h-[400px]">
-              <QRScanner onScan={handleValidate} active={!animStatus && !cooldown} />
+              {/* SCANNER FRAME */}
+              <div className="relative w-full aspect-square max-w-[350px] mx-auto">
+                <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-20">
+                  <div className="bg-black/80 backdrop-blur-md border border-green-500/30 px-4 py-2 rounded-full flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-[10px] font-black text-white uppercase tracking-widest">SYNC ACTIVE</span>
+                  </div>
+                </div>
 
-              {/* Overlay Scanner UI */}
-              <div className="absolute inset-0 border-[30px] border-black/50 pointer-events-none"></div>
-              <div className="absolute top-8 left-0 right-0 text-center pointer-events-none">
-                <span className="px-3 py-1 bg-black/60 rounded-full text-[10px] font-bold text-white uppercase tracking-wider backdrop-blur-md">Escaneando...</span>
+                <div className="w-full h-full rounded-[40px] overflow-hidden border-2 border-slate-700 relative shadow-2xl bg-black">
+                  <QRScanner onScan={handleValidate} active={!animStatus && !cooldown} />
+
+                  {/* OVERLAY ELEMENTS */}
+                  <div className="absolute inset-0 border-[40px] border-black/50 pointer-events-none rounded-[40px]" />
+                  {/* CORNERS */}
+                  <div className="absolute top-8 left-8 w-12 h-12 border-t-4 border-l-4 border-blue-500 rounded-tl-xl pointer-events-none" />
+                  <div className="absolute top-8 right-8 w-12 h-12 border-t-4 border-r-4 border-blue-500 rounded-tr-xl pointer-events-none" />
+                  <div className="absolute bottom-8 left-8 w-12 h-12 border-b-4 border-l-4 border-blue-500 rounded-bl-xl pointer-events-none" />
+                  <div className="absolute bottom-8 right-8 w-12 h-12 border-b-4 border-r-4 border-blue-500 rounded-br-xl pointer-events-none" />
+
+                  <div className="absolute bottom-10 left-0 right-0 flex justify-center pointer-events-none">
+                    <div className="bg-white/10 backdrop-blur-md px-6 py-2 rounded-2xl border border-white/20 flex items-center gap-2">
+                      <Camera size={14} className="text-white" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-white">LENTE POSTERIOR ACTIVA</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 flex items-center justify-center gap-4 text-slate-500">
+                <div className="h-[1px] w-12 bg-slate-800" />
+                <span className="text-[10px] font-black uppercase tracking-[0.2rem]">LECTURA ACTIVA</span>
+                <div className="h-[1px] w-12 bg-slate-800" />
               </div>
             </div>
+          )}
+
+          {activeTab === 'STATS' && (
+            <div className="flex-1 p-6 pb-32 overflow-y-auto">
+              <h2 className="text-3xl font-black text-white mb-8 uppercase italic">Métricas</h2>
+
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                <div className="bg-slate-900/50 border border-green-500/20 p-6 rounded-[32px] flex flex-col items-center justify-center relative overflow-hidden">
+                  <div className="absolute -right-4 -top-4 w-16 h-16 bg-green-500/10 rounded-full blur-xl" />
+                  <CheckCircle size={24} className="text-green-500 mb-2" />
+                  <span className="text-[10px] font-black text-green-500 uppercase tracking-widest mb-1">OK</span>
+                  <span className="text-4xl font-black text-white tracking-tighter">0</span>
+                </div>
+                <div className="bg-slate-900/50 border border-red-500/20 p-6 rounded-[32px] flex flex-col items-center justify-center relative overflow-hidden">
+                  <div className="absolute -right-4 -top-4 w-16 h-16 bg-red-500/10 rounded-full blur-xl" />
+                  <XCircle size={24} className="text-red-500 mb-2" />
+                  <span className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-1">FAIL</span>
+                  <span className="text-4xl font-black text-white tracking-tighter">0</span>
+                </div>
+              </div>
+
+              <div className="bg-[#1e293b] rounded-[32px] p-8 border border-slate-700/50">
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">CAUSAS RECHAZO</h3>
+                <div className="space-y-6">
+                  {[
+                    { l: 'USED', v: stats.used },
+                    { l: 'WRONG EVENT', v: stats.wrongEvent },
+                    { l: 'NOT FOUND', v: stats.notFound },
+                    { l: 'RATE LIMIT', v: stats.rateLimit }
+                  ].map((s) => (
+                    <div key={s.l}>
+                      <div className="flex justify-between mb-2">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{s.l}</span>
+                        <span className="text-xs font-bold text-white">{s.v} <span className="text-slate-600 text-[10px]">(0%)</span></span>
+                      </div>
+                      <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div className="w-0 h-full bg-slate-600 rounded-full" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-6 bg-blue-600 rounded-[32px] p-8 relative overflow-hidden shadow-xl">
+                <Zap size={120} className="text-blue-500 absolute -right-4 -bottom-4 opacity-50 rotate-[-15deg]" />
+                <div className="relative z-10 flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                    <Zap size={24} className="text-white fill-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-white uppercase italic leading-none">SYSTEM ACTIVE</h3>
+                    <p className="text-[10px] font-bold text-blue-200 uppercase tracking-widest">SINCRONIZACIÓN REGIONAL OK</p>
+                  </div>
+                </div>
+                <div className="relative z-10 flex gap-8 mt-4 border-t border-white/10 pt-4">
+                  <div>
+                    <p className="text-[10px] font-bold text-blue-200 uppercase tracking-widest mb-1">LATENCIA</p>
+                    <p className="text-xl font-black text-white">42 MS</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-blue-200 uppercase tracking-widest mb-1">STATUS</p>
+                    <p className="text-xl font-black text-white">OPTIMAL</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* BOTTOM NAVBAR */}
+          <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#0f172a] via-[#0f172a] to-transparent flex items-center justify-center gap-12 pb-4">
+            <button onClick={() => setActiveTab('CAMERA')} className={`flex flex-col items-center gap-2 group ${activeTab === 'CAMERA' ? 'scale-110' : 'opacity-50 hover:opacity-100'} transition-all`}>
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all ${activeTab === 'CAMERA' ? 'bg-blue-600 text-white shadow-blue-500/30' : 'bg-transparent text-slate-400'}`}>
+                <QrCode size={24} />
+              </div>
+              <span className={`text-[10px] font-black uppercase tracking-widest ${activeTab === 'CAMERA' ? 'text-blue-400' : 'text-slate-500'}`}>CÁMARA</span>
+            </button>
+
+            <button onClick={() => setActiveTab('AUDIT')} className={`flex flex-col items-center gap-2 group ${activeTab === 'AUDIT' ? 'scale-110' : 'opacity-50 hover:opacity-100'} transition-all`}>
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all ${activeTab === 'AUDIT' ? 'bg-blue-600 text-white shadow-blue-500/30' : 'bg-transparent text-slate-400'}`}>
+                <History size={24} />
+              </div>
+              <span className={`text-[10px] font-black uppercase tracking-widest ${activeTab === 'AUDIT' ? 'text-blue-400' : 'text-slate-500'}`}>AUDITAR</span>
+            </button>
+
+            <button onClick={() => setActiveTab('STATS')} className={`flex flex-col items-center gap-2 group ${activeTab === 'STATS' ? 'scale-110' : 'opacity-50 hover:opacity-100'} transition-all`}>
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all ${activeTab === 'STATS' ? 'bg-blue-600 text-white shadow-blue-500/30' : 'bg-transparent text-slate-400'}`}>
+                <LayoutGrid size={24} />
+              </div>
+              <span className={`text-[10px] font-black uppercase tracking-widest ${activeTab === 'STATS' ? 'text-blue-400' : 'text-slate-500'}`}>STATS</span>
+            </button>
           </div>
         </div>
       )}
