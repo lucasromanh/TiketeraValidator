@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -7,9 +8,21 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- CONFIGURACIÓN DINÁMICA: Cambia esto en Producción -->
+    <script>
+        window.APP_CONFIG = {
+            // En Hostinger: Si no tienes backend deployed, esto fallará para la sync.
+            // Opcional: Pon aquí tu IP local pública si te animas (ej: "http://181.x.x.x:3000")
+            // O una URL de Render/Railway si subes el server.js allí.
+            BACKEND_URL: "AUTO"
+        };
+    </script>
 </head>
+
 <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
 </body>
+
 </html>

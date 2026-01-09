@@ -32,46 +32,53 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, active }) => {
 
   const startScanner = async () => {
     if (html5QrCodeRef.current) return;
-    
+
     setIsStarting(true);
     setError(null);
 
-    try {
-      const html5QrCode = new Html5Qrcode("qr-reader");
-      html5QrCodeRef.current = html5QrCode;
+    const html5QrCode = new Html5Qrcode("qr-reader");
+    html5QrCodeRef.current = html5QrCode;
 
-      const config = {
-        fps: 15,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0
-      };
+    const config = {
+      fps: 15,
+      qrbox: { width: 250, height: 250 },
+      aspectRatio: 1.0
+    };
 
+    const startCamera = async (mode: any) => {
       await html5QrCode.start(
-        { facingMode: "environment" },
+        mode,
         config,
         (decodedText: string) => {
-          // Debounce same scans to avoid multiple triggers
           if (decodedText !== lastScanRef.current) {
             lastScanRef.current = decodedText;
             onScan(decodedText);
-            
-            // Clear last scan after 3 seconds to allow re-scanning same code if needed
             if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
             scanTimeoutRef.current = setTimeout(() => {
               lastScanRef.current = null;
             }, 3000);
           }
         },
-        (errorMessage: string) => {
-          // Normal feedback during scanning, ignore unless it's a critical failure
-        }
+        () => { } // Ignore frame errors
       );
+    };
+
+    try {
+      // 1. Intentar preferentemente cámara trasera
+      await startCamera({ facingMode: "environment" });
       setIsStarting(false);
-    } catch (err: any) {
-      console.error("Camera Error:", err);
-      setIsStarting(false);
-      setError("Error al acceder a la cámara. Asegúrate de dar permisos.");
-      html5QrCodeRef.current = null;
+    } catch (err) {
+      console.warn("No environment camera found, trying user facing or default...", err);
+      try {
+        // 2. Fallback: Intentar cualquier cámara disponible (user facing)
+        await startCamera({ facingMode: "user" });
+        setIsStarting(false);
+      } catch (err2) {
+        console.error("Camera Error (Fallback):", err2);
+        setIsStarting(false);
+        setError("No se pudo acceder a ninguna cámara. Verifica permisos.");
+        html5QrCodeRef.current = null;
+      }
     }
   };
 
@@ -106,7 +113,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, active }) => {
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-900/90 backdrop-blur-md p-8 text-center z-20">
           <AlertCircle className="w-12 h-12 text-white mb-4" />
           <p className="text-white font-black text-sm uppercase leading-tight mb-6">{error}</p>
-          <button 
+          <button
             onClick={startScanner}
             className="px-6 py-3 bg-white text-red-600 rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all"
           >
@@ -120,19 +127,19 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, active }) => {
         <div className="absolute inset-0 pointer-events-none">
           {/* Scanning Box Outline */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250px] h-[250px] rounded-3xl border-2 border-white/10">
-             {/* Corners */}
+            {/* Corners */}
             <div className="absolute -top-1 -left-1 w-10 h-10 border-t-4 border-l-4 border-blue-500 rounded-tl-xl"></div>
             <div className="absolute -top-1 -right-1 w-10 h-10 border-t-4 border-r-4 border-blue-500 rounded-tr-xl"></div>
             <div className="absolute -bottom-1 -left-1 w-10 h-10 border-b-4 border-l-4 border-blue-500 rounded-bl-xl"></div>
             <div className="absolute -bottom-1 -right-1 w-10 h-10 border-b-4 border-r-4 border-blue-500 rounded-br-xl"></div>
-            
+
             {/* Animated Scan Line */}
             <div className="absolute top-0 left-4 right-4 h-0.5 bg-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.8)] animate-[scan_2s_ease-in-out_infinite]"></div>
           </div>
 
           {/* Vignette */}
           <div className="absolute inset-0 shadow-[inset_0_0_100px_rgba(0,0,0,0.8)]"></div>
-          
+
           <div className="absolute bottom-6 left-0 right-0 flex justify-center">
             <div className="px-4 py-2 bg-black/40 backdrop-blur-md rounded-full border border-white/10 flex items-center gap-2">
               <Camera size={14} className="text-blue-500" />
@@ -141,7 +148,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, active }) => {
           </div>
         </div>
       )}
-      
+
       <style>{`
         @keyframes scan {
           0%, 100% { top: 10%; opacity: 0.2; }

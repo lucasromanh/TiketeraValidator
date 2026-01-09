@@ -1,13 +1,40 @@
 import { io } from 'socket.io-client';
 
-// Detectar si estamos en producción (served by node) o desarrollo (vite)
-// Si estamos en desarrollo, asumimos que el usuario correrá el servidor en el puerto 3000 o similar
-// Pero para simplificar en red local, intentamos conectar al host actual
-const URL = window.location.hostname === 'localhost'
-    ? `http://${window.location.hostname}:3000` // Asumimos puerto del servidor en dev
-    : '/'; // En producción (mismo puerto que sirve los archivos)
+declare global {
+    interface Window {
+        APP_CONFIG?: {
+            BACKEND_URL?: string;
+        };
+    }
+}
 
-export const socket = io(URL, {
+// Configuración de la URL del Backend
+const getBackendUrl = () => {
+    // 0. Si hay una configuración explicita en el HTML de Hostinger, usala.
+    if (window.APP_CONFIG?.BACKEND_URL && window.APP_CONFIG.BACKEND_URL !== "AUTO") {
+        console.log('Socket.io: Usando configuración manual:', window.APP_CONFIG.BACKEND_URL);
+        return window.APP_CONFIG.BACKEND_URL;
+    }
+
+    const hostname = window.location.hostname;
+
+    // 1. Desarrollo Local
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'http://localhost:3000';
+    }
+
+    // 2. Acceso por IP en Red Local (ej: 192.168.x.x)
+    if (hostname.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
+        return `http://${hostname}:3000`;
+    }
+
+    // 3. Producción por Defecto (Intenta mismo dominio)
+    // Esto fallará en Hostinger estático, pero permite funcionalidad básica.
+    return window.location.origin;
+};
+
+export const socket = io(getBackendUrl(), {
     autoConnect: true,
     reconnection: true,
+    transports: ['websocket', 'polling']
 });
