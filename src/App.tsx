@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  OperationType, UserRole, TicketStatus, User, EventSession, Ticket, ScanAttempt, TicketType 
+import {
+  OperationType, UserRole, TicketStatus, User, EventSession, Ticket, ScanAttempt, TicketType
 } from './types';
 import { MOCK_USERS, MOCK_EVENTS, MOCK_TICKETS } from './constants';
-import { 
-  QrCode, History, LayoutDashboard, LogOut, 
-  MapPin, Moon, Sun, ShieldCheck, 
-  Calendar, ChevronRight, UserCircle, 
+import {
+  QrCode, History, LayoutDashboard, LogOut,
+  MapPin, Moon, Sun, ShieldCheck,
+  Calendar, ChevronRight, UserCircle,
   Zap, AlertTriangle, Wifi, WifiOff, Ticket as TicketIcon,
   GlassWater, CheckCircle2, XCircle
 } from 'lucide-react';
@@ -66,7 +66,7 @@ const LoginView: React.FC<{
       </motion.div>
 
       <div className="w-full max-w-xs space-y-8">
-        <button 
+        <button
           onClick={selectAssistantMode}
           className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center gap-3 font-bold hover:bg-white/10 transition-all active:scale-95 text-slate-300"
         >
@@ -80,12 +80,12 @@ const LoginView: React.FC<{
 
         <div className="space-y-6">
           <div className="relative flex justify-center gap-3">
-             {[0, 1, 2, 3].map((i) => (
-               <div key={i} className={`w-12 h-16 rounded-xl border-2 flex items-center justify-center transition-all ${pinInput.length > i ? 'border-blue-500 bg-blue-500/10' : 'border-slate-800 bg-black'}`}>
-                  {pinInput.length > i && <div className="w-3 h-3 bg-white rounded-full shadow-[0_0_10px_white]"></div>}
-               </div>
-             ))}
-             <input 
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className={`w-12 h-16 rounded-xl border-2 flex items-center justify-center transition-all ${pinInput.length > i ? 'border-blue-500 bg-blue-500/10' : 'border-slate-800 bg-black'}`}>
+                {pinInput.length > i && <div className="w-3 h-3 bg-white rounded-full shadow-[0_0_10px_white]"></div>}
+              </div>
+            ))}
+            <input
               ref={inputRef}
               type="tel"
               autoFocus
@@ -99,7 +99,7 @@ const LoginView: React.FC<{
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
           </div>
-          
+
           {error && (
             <motion.p initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-red-500 text-center font-black text-sm uppercase tracking-wider">
               {error}
@@ -118,10 +118,10 @@ const OperationSelector: React.FC<{ setOpProfile: (type: OperationType) => void 
       <h1 className="text-xl font-black italic tracking-tighter mb-4">
         <span className="text-blue-500">MIRA</span> SOLE
       </h1>
-      <h2 className="text-4xl font-black leading-tight tracking-tighter uppercase">MODO<br/>OPERATIVO</h2>
+      <h2 className="text-4xl font-black leading-tight tracking-tighter uppercase">MODO<br />OPERATIVO</h2>
       <div className="h-1.5 w-16 bg-blue-600 mt-4 rounded-full shadow-[0_0_15px_rgba(37,99,235,0.6)]"></div>
     </div>
-    
+
     <div className="grid grid-cols-1 gap-5">
       {Object.values(OperationType).map((type) => (
         <motion.button
@@ -146,15 +146,18 @@ const OperationSelector: React.FC<{ setOpProfile: (type: OperationType) => void 
 
 // --- Main App ---
 
+import { socket } from './socket';
+import { ValidationNotification } from './components/ValidationNotification';
+
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentRole, setCurrentRole] = useState<UserRole | null>(null);
   const [opProfile, setOpProfile] = useState<OperationType | null>(null);
-  const [isNightMode, setIsNightMode] = useState(true); 
+  const [isNightMode, setIsNightMode] = useState(true);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [pinInput, setPinInput] = useState('');
   const [error, setError] = useState<string | null>(null);
-  
+
   const [events, setEvents] = useState<EventSession[]>(MOCK_EVENTS);
   const [tickets, setTickets] = useState<Ticket[]>(MOCK_TICKETS);
   const [scanLogs, setScanLogs] = useState<ScanAttempt[]>([]);
@@ -174,9 +177,14 @@ const App: React.FC = () => {
     const handleOffline = () => setIsOffline(true);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+
+    // Conectar socket
+    socket.connect();
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      socket.disconnect();
     };
   }, []);
 
@@ -245,22 +253,44 @@ const App: React.FC = () => {
       setAnimStatus('rejected');
       setAnimReason('YA USADO');
       setAnimDetails(`${ticket.usedInMode} - ${new Date(ticket.usedAt!).toLocaleTimeString()}`);
+
+      // Emitir evento de rechazo (opcional, si quisiéramos notificar que intentaron usarlo)
+      socket.emit('ticket_validated', {
+        type: 'REJECTED',
+        ticketId: ticket.id,
+        ownerId: ticket.ownerUserId,
+        reason: 'YA USADO',
+        mode: activeMode,
+        timestamp: new Date().toISOString()
+      });
+
     } else {
-      const updatedTickets = tickets.map(t => 
-        t.id === ticket.id 
-        ? { 
-            ...t, 
-            status: TicketStatus.USED, 
-            usedAt: new Date().toISOString(), 
+      const updatedTickets = tickets.map(t =>
+        t.id === ticket.id
+          ? {
+            ...t,
+            status: TicketStatus.USED,
+            usedAt: new Date().toISOString(),
             usedInMode: activeMode,
             usedByDeviceId: 'DEVICE-01'
-          } 
-        : t
+          }
+          : t
       );
       setTickets(updatedTickets);
       logScan(code, 'APPROVED');
       setAnimStatus('approved');
       setAnimDetails(`${ticket.type} - VALIDADO`);
+
+      // EMITIR EVENTO AL SERVER
+      socket.emit('ticket_validated', {
+        type: 'APPROVED',
+        ticketId: ticket.id,
+        ownerId: ticket.ownerUserId,
+        ticketType: ticket.type,
+        detail: ticket.metadata?.detail || ticket.type,
+        mode: activeMode,
+        timestamp: new Date().toISOString()
+      });
     }
   };
 
@@ -292,12 +322,12 @@ const App: React.FC = () => {
 
   if (!currentUser) {
     return (
-      <LoginView 
-        pinInput={pinInput} 
-        setPinInput={setPinInput} 
-        error={error} 
-        handleLogin={handleLogin} 
-        selectAssistantMode={selectAssistantMode} 
+      <LoginView
+        pinInput={pinInput}
+        setPinInput={setPinInput}
+        error={error}
+        handleLogin={handleLogin}
+        selectAssistantMode={selectAssistantMode}
       />
     );
   }
@@ -305,11 +335,12 @@ const App: React.FC = () => {
   if (currentRole === UserRole.ASSISTANT) {
     const myTickets = tickets.filter(t => t.ownerUserId === currentUser?.id);
     return (
-      <AssistantView 
-        currentUser={currentUser} 
-        logout={logout} 
-        myTickets={myTickets} 
-        events={events} 
+      <AssistantView
+        currentUser={currentUser}
+        logout={logout}
+        myTickets={myTickets}
+        events={events}
+        setTickets={setTickets}
       />
     );
   }
@@ -317,15 +348,15 @@ const App: React.FC = () => {
   if (!opProfile) {
     return <OperationSelector setOpProfile={setOpProfile} />;
   }
-  
+
   return (
-    <StaffView 
-      opProfile={opProfile} 
-      logout={logout} 
-      events={events} 
-      selectedEventId={selectedEventId} 
-      setSelectedEventId={setSelectedEventId} 
-      isNightMode={isNightMode} 
+    <StaffView
+      opProfile={opProfile}
+      logout={logout}
+      events={events}
+      selectedEventId={selectedEventId}
+      setSelectedEventId={setSelectedEventId}
+      isNightMode={isNightMode}
       setIsNightMode={setIsNightMode}
       isOffline={isOffline}
       animStatus={animStatus}
@@ -348,8 +379,46 @@ const App: React.FC = () => {
 
 // --- View Implementations ---
 
-const AssistantView: React.FC<any> = ({ currentUser, logout, myTickets, events }) => {
+const AssistantView: React.FC<any> = ({ currentUser, logout, myTickets, events, setTickets }) => {
   const [viewingTicket, setViewingTicket] = useState<Ticket | null>(null);
+  // Estados para notificación
+  const [notifShow, setNotifShow] = useState(false);
+  const [notifData, setNotifData] = useState<any>({});
+
+  // Efecto para escuchar eventos de socket
+  useEffect(() => {
+    const handleTicketValidated = (data: any) => {
+      // Solo mostrar si el ticket pertenece a este usuario
+      if (data.ownerId === currentUser.id) {
+        console.log('Evento recibido:', data);
+
+        // Actualizar estado local del ticket (para que se ponga gris)
+        if (data.type === 'APPROVED') {
+          setTickets((prev: Ticket[]) => prev.map(t =>
+            t.id === data.ticketId
+              ? { ...t, status: TicketStatus.USED, usedAt: data.timestamp }
+              : t
+          ));
+        }
+
+        // Mostrar notificación
+        setNotifData(data);
+        setNotifShow(true);
+        setTimeout(() => setNotifShow(false), 5000);
+
+        // Si estamos viendo el QR de ese ticket, cerrarlo
+        if (viewingTicket?.id === data.ticketId) {
+          setViewingTicket(null);
+        }
+      }
+    };
+
+    socket.on('ticket_validated', handleTicketValidated);
+
+    return () => {
+      socket.off('ticket_validated', handleTicketValidated);
+    };
+  }, [currentUser.id, setTickets, viewingTicket]);
 
   const getTicketIcon = (type: TicketType) => {
     if (type === TicketType.DRINK || type === TicketType.POPCORN) return <GlassWater className="w-5 h-5" />;
@@ -358,7 +427,17 @@ const AssistantView: React.FC<any> = ({ currentUser, logout, myTickets, events }
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-black text-white">
+      <ValidationNotification
+        show={notifShow}
+        type={notifData.type}
+        ticketType={notifData.ticketType}
+        detail={notifData.detail}
+        reason={notifData.reason}
+        onClose={() => setNotifShow(false)}
+      />
+
       <div className="p-6 flex items-center justify-between border-b border-white/5 backdrop-blur-md sticky top-0 z-40">
+
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
             <span className="text-blue-500 font-black">CP</span>
@@ -379,13 +458,13 @@ const AssistantView: React.FC<any> = ({ currentUser, logout, myTickets, events }
         <div className="bg-white/5 rounded-[40px] p-8 border border-white/5 relative overflow-hidden">
           <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl"></div>
           <p className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-500 mb-3">Dashboard Usuario</p>
-          <h2 className="text-3xl font-black tracking-tighter leading-tight">Hola,<br/>{currentUser?.name.split(' ')[0]}.</h2>
+          <h2 className="text-3xl font-black tracking-tighter leading-tight">Hola,<br />{currentUser?.name.split(' ')[0]}.</h2>
           <p className="text-xs text-slate-500 mt-2 font-bold uppercase tracking-widest opacity-80">Salta • {myTickets.length} tickets activos</p>
         </div>
 
         <div className="flex items-center justify-between px-2">
-           <h3 className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-600">Tus Accesos</h3>
-           <div className="h-px flex-1 bg-white/5 mx-4"></div>
+          <h3 className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-600">Tus Accesos</h3>
+          <div className="h-px flex-1 bg-white/5 mx-4"></div>
         </div>
 
         {myTickets.length === 0 ? (
@@ -401,21 +480,19 @@ const AssistantView: React.FC<any> = ({ currentUser, logout, myTickets, events }
               const isDrink = ticket.type === TicketType.DRINK;
 
               return (
-                <motion.div 
+                <motion.div
                   whileTap={{ scale: 0.98 }}
-                  key={ticket.id} 
+                  key={ticket.id}
                   onClick={() => setViewingTicket(ticket)}
-                  className={`group relative overflow-hidden rounded-[36px] border transition-all ${
-                    isUsed ? 'bg-black/40 border-white/5 opacity-50 grayscale' : 'bg-slate-800/40 border-white/10 shadow-2xl backdrop-blur-sm'
-                  }`}
+                  className={`group relative overflow-hidden rounded-[36px] border transition-all ${isUsed ? 'bg-black/40 border-white/5 opacity-50 grayscale' : 'bg-slate-800/40 border-white/10 shadow-2xl backdrop-blur-sm'
+                    }`}
                 >
                   <div className="p-6">
                     <div className="flex justify-between items-start">
                       <div className="flex-1 pr-4">
                         <div className="flex items-center gap-2 mb-3">
-                          <span className={`text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
-                            ticket.status === TicketStatus.VALID ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(59,130,246,0.6)]' : 'bg-slate-700 text-slate-400'
-                          }`}>
+                          <span className={`text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${ticket.status === TicketStatus.VALID ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(59,130,246,0.6)]' : 'bg-slate-700 text-slate-400'
+                            }`}>
                             {isUsed ? 'USADO' : 'ACTIVO'}
                           </span>
                           <span className={`text-[9px] font-black uppercase tracking-widest ${isDrink ? 'text-amber-500' : 'text-blue-500'}`}>
@@ -427,10 +504,9 @@ const AssistantView: React.FC<any> = ({ currentUser, logout, myTickets, events }
                           <MapPin size={10} className="text-blue-500" /> {event?.venue || 'Salta'}
                         </p>
                       </div>
-                      
-                      <div className={`w-16 h-16 rounded-3xl flex items-center justify-center transition-all ${
-                        isUsed ? 'bg-white/5' : isDrink ? 'bg-amber-500/10 text-amber-500 border border-amber-500/10 shadow-[0_0_20px_rgba(245,158,11,0.1)]' : 'bg-blue-500/10 text-blue-500 border border-blue-500/10 shadow-[0_0_20px_rgba(59,130,246,0.1)]'
-                      }`}>
+
+                      <div className={`w-16 h-16 rounded-3xl flex items-center justify-center transition-all ${isUsed ? 'bg-white/5' : isDrink ? 'bg-amber-500/10 text-amber-500 border border-amber-500/10 shadow-[0_0_20px_rgba(245,158,11,0.1)]' : 'bg-blue-500/10 text-blue-500 border border-blue-500/10 shadow-[0_0_20px_rgba(59,130,246,0.1)]'
+                        }`}>
                         {getTicketIcon(ticket.type)}
                       </div>
                     </div>
@@ -442,7 +518,7 @@ const AssistantView: React.FC<any> = ({ currentUser, logout, myTickets, events }
                           {ticket.metadata?.detail || (isDrink ? 'BEBIDA' : 'ACCESO')}
                         </p>
                       </div>
-                      
+
                       {!isUsed ? (
                         <div className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 rounded-full shadow-lg shadow-blue-500/20 active:scale-90 transition-all">
                           <span className="text-[10px] font-black uppercase tracking-widest">VER QR</span>
@@ -450,8 +526,8 @@ const AssistantView: React.FC<any> = ({ currentUser, logout, myTickets, events }
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
-                           <ShieldCheck size={14} className="text-slate-600" />
-                           <p className="text-[9px] font-black text-slate-600 uppercase italic">Ya Validado</p>
+                          <ShieldCheck size={14} className="text-slate-600" />
+                          <p className="text-[9px] font-black text-slate-600 uppercase italic">Ya Validado</p>
                         </div>
                       )}
                     </div>
@@ -465,7 +541,7 @@ const AssistantView: React.FC<any> = ({ currentUser, logout, myTickets, events }
 
       <AnimatePresence>
         {viewingTicket && (
-          <motion.div 
+          <motion.div
             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
             className="fixed inset-0 z-50 bg-white flex flex-col text-black p-8"
           >
@@ -479,7 +555,7 @@ const AssistantView: React.FC<any> = ({ currentUser, logout, myTickets, events }
                 <div className="h-1 w-12 bg-blue-600 mx-auto rounded-full mb-4"></div>
                 <p className="font-bold text-slate-400 uppercase tracking-[0.3em] text-[10px]">{viewingTicket.metadata?.detail || viewingTicket.type}</p>
               </div>
-              
+
               <div className="p-8 bg-white border-[16px] border-black rounded-[60px] mb-12 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] relative group">
                 <div className="absolute -top-5 -left-5 w-10 h-10 bg-white rounded-full border-4 border-black"></div>
                 <div className="absolute -top-5 -right-5 w-10 h-10 bg-white rounded-full border-4 border-black"></div>
@@ -487,13 +563,13 @@ const AssistantView: React.FC<any> = ({ currentUser, logout, myTickets, events }
                 <div className="absolute -bottom-5 -right-5 w-10 h-10 bg-white rounded-full border-4 border-black"></div>
                 <QRCodeSVG value={`ticket:${viewingTicket.code}`} size={240} level="H" includeMargin={false} className="group-hover:scale-105 transition-transform duration-500" />
               </div>
-              
+
               <div className="flex flex-col items-center gap-6">
                 <div className="flex items-center gap-3 px-8 py-3.5 bg-slate-50 border border-slate-100 rounded-full shadow-sm">
                   <ShieldCheck className="w-6 h-6 text-green-600" />
                   <p className="text-[11px] font-black uppercase text-slate-500 tracking-[0.2em]">VALIDACIÓN SEGURA</p>
                 </div>
-                
+
                 <p className="text-[10px] text-center text-slate-400 italic font-bold uppercase tracking-[0.1em] px-12 leading-relaxed opacity-60">
                   Salta • {new Date().toLocaleDateString()} • {viewingTicket.id.toUpperCase()}
                 </p>
@@ -506,8 +582,8 @@ const AssistantView: React.FC<any> = ({ currentUser, logout, myTickets, events }
   );
 };
 
-const StaffView: React.FC<any> = ({ 
-  opProfile, logout, events, selectedEventId, setSelectedEventId, 
+const StaffView: React.FC<any> = ({
+  opProfile, logout, events, selectedEventId, setSelectedEventId,
   isNightMode, setIsNightMode, isOffline, animStatus, animReason, animDetails,
   setAnimStatus, setAnimReason, setAnimDetails, activeGate, setActiveGate,
   activeMode, setActiveMode, cooldown, handleValidate, scanLogs, currentUser
@@ -517,14 +593,14 @@ const StaffView: React.FC<any> = ({
   const selectedEvent = events.find(e => e.id === selectedEventId);
 
   // Styling helpers based on theme
-  const themeClasses = isNightMode 
-    ? "bg-gradient-to-br from-slate-900 via-slate-800 to-black text-white" 
+  const themeClasses = isNightMode
+    ? "bg-gradient-to-br from-slate-900 via-slate-800 to-black text-white"
     : "bg-gradient-to-br from-slate-100 via-slate-50 to-white text-slate-900";
-  
-  const cardClasses = isNightMode 
-    ? "bg-white/5 border-white/10" 
+
+  const cardClasses = isNightMode
+    ? "bg-white/5 border-white/10"
     : "bg-white border-slate-200 shadow-xl";
-  
+
   const textPrimary = isNightMode ? "text-white" : "text-slate-900";
   const textSecondary = isNightMode ? "text-slate-400" : "text-slate-500";
   const headerBg = isNightMode ? "bg-black/40 backdrop-blur-xl border-white/5" : "bg-white/80 backdrop-blur-xl border-slate-200";
@@ -552,12 +628,12 @@ const StaffView: React.FC<any> = ({
           <p className={`text-[11px] font-black uppercase tracking-[0.3em] ${textSecondary}`}>SELECCIONA EVENTO ACTIVO</p>
           <div className="h-1.5 w-12 bg-blue-600 mt-4 rounded-full"></div>
         </div>
-        
+
         <div className="space-y-5 flex-1 overflow-y-auto no-scrollbar pb-10">
           {filteredEvents.map(ev => (
-            <motion.button 
+            <motion.button
               whileTap={{ scale: 0.98 }}
-              key={ev.id} 
+              key={ev.id}
               onClick={() => setSelectedEventId(ev.id)}
               className={`w-full p-8 rounded-[40px] border text-left transition-all group relative overflow-hidden ${cardClasses}`}
             >
@@ -565,13 +641,13 @@ const StaffView: React.FC<any> = ({
               <p className={`text-xs font-bold flex items-center gap-1.5 uppercase tracking-wider mb-6 ${textSecondary}`}>
                 <MapPin size={12} className="text-blue-500" /> {ev.venue}
               </p>
-              
+
               <div className="flex items-center justify-between">
                 <div className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] ${isNightMode ? 'bg-blue-500/10 text-blue-400 border border-blue-500/10' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
                   LISTO PARA VALIDAR
                 </div>
                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-all ${isNightMode ? 'bg-white/5 border-white/5 group-hover:border-blue-500' : 'bg-slate-50 border-slate-100 group-hover:border-blue-300'}`}>
-                   <ChevronRight className={`w-6 h-6 transition-all ${isNightMode ? 'text-slate-500 group-hover:text-blue-500' : 'text-slate-400 group-hover:text-blue-600'}`} />
+                  <ChevronRight className={`w-6 h-6 transition-all ${isNightMode ? 'text-slate-500 group-hover:text-blue-500' : 'text-slate-400 group-hover:text-blue-600'}`} />
                 </div>
               </div>
             </motion.button>
@@ -583,15 +659,15 @@ const StaffView: React.FC<any> = ({
 
   return (
     <div className={`min-h-screen flex flex-col ${themeClasses}`}>
-      <AnimationOverlay 
-        status={animStatus} 
-        reason={animReason} 
-        details={animDetails} 
+      <AnimationOverlay
+        status={animStatus}
+        reason={animReason}
+        details={animDetails}
         onFinished={() => {
           setAnimStatus(null);
           setAnimReason(undefined);
           setAnimDetails(undefined);
-        }} 
+        }}
       />
 
       <div className={`p-4 border-b flex items-center justify-between sticky top-0 z-40 transition-colors duration-500 ${headerBg}`}>
@@ -624,10 +700,9 @@ const StaffView: React.FC<any> = ({
               <div className="space-y-1.5">
                 <label className={`text-[9px] font-black uppercase tracking-[0.2em] ml-2 ${textSecondary}`}>Punto de Control</label>
                 <div className="relative group">
-                  <select 
-                    className={`w-full px-5 py-4 border rounded-[28px] text-[11px] font-black appearance-none outline-none uppercase tracking-tight shadow-sm transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 ${
-                      isNightMode ? 'bg-slate-800/80 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
-                    }`}
+                  <select
+                    className={`w-full px-5 py-4 border rounded-[28px] text-[11px] font-black appearance-none outline-none uppercase tracking-tight shadow-sm transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 ${isNightMode ? 'bg-slate-800/80 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+                      }`}
                     value={activeMode}
                     onChange={(e) => setActiveMode(e.target.value)}
                   >
@@ -638,14 +713,13 @@ const StaffView: React.FC<any> = ({
                   <ChevronRight size={14} className={`absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none rotate-90 transition-opacity group-hover:opacity-100 opacity-40 ${textPrimary}`} />
                 </div>
               </div>
-              
+
               <div className="space-y-1.5">
                 <label className={`text-[9px] font-black uppercase tracking-[0.2em] ml-2 ${textSecondary}`}>Ubicación / Gate</label>
                 <div className="relative group">
-                  <select 
-                    className={`w-full px-5 py-4 border rounded-[28px] text-[11px] font-black appearance-none outline-none uppercase tracking-tight shadow-sm transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 ${
-                      isNightMode ? 'bg-slate-800/80 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
-                    }`}
+                  <select
+                    className={`w-full px-5 py-4 border rounded-[28px] text-[11px] font-black appearance-none outline-none uppercase tracking-tight shadow-sm transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 ${isNightMode ? 'bg-slate-800/80 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+                      }`}
                     value={activeGate}
                     onChange={(e) => setActiveGate(e.target.value)}
                   >
@@ -668,10 +742,9 @@ const StaffView: React.FC<any> = ({
               ) : (
                 <div className="w-full max-w-sm aspect-square relative group">
                   <QRScanner onScan={handleValidate} active={view === 'scan'} />
-                  <div className={`absolute -top-4 -right-4 flex items-center gap-2 backdrop-blur-3xl px-6 py-3 rounded-full text-[10px] font-black border shadow-2xl ${
-                    isNightMode ? 'bg-black/80 text-white border-white/10' : 'bg-white/90 text-slate-900 border-slate-100'
-                  }`}>
-                    <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(34,197,94,0.8)]"></div> 
+                  <div className={`absolute -top-4 -right-4 flex items-center gap-2 backdrop-blur-3xl px-6 py-3 rounded-full text-[10px] font-black border shadow-2xl ${isNightMode ? 'bg-black/80 text-white border-white/10' : 'bg-white/90 text-slate-900 border-slate-100'
+                    }`}>
+                    <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(34,197,94,0.8)]"></div>
                     <span className="tracking-[0.2em]">SYNC ACTIVE</span>
                   </div>
                 </div>
@@ -697,7 +770,7 @@ const StaffView: React.FC<any> = ({
               </div>
               <span className="text-[10px] font-black bg-blue-600 text-white px-4 py-2 rounded-2xl shadow-lg">{scanLogs.length} LOGS</span>
             </div>
-            
+
             {scanLogs.length === 0 ? (
               <div className={`flex flex-col items-center justify-center py-32 opacity-20 ${textPrimary}`}>
                 <History size={60} className="mb-4" />
@@ -705,9 +778,9 @@ const StaffView: React.FC<any> = ({
               </div>
             ) : (
               scanLogs.map(log => (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                  key={log.id} 
+                  key={log.id}
                   className={`p-6 rounded-[36px] border flex items-center justify-between ${cardClasses}`}
                 >
                   <div className="flex items-center gap-4">
@@ -723,7 +796,7 @@ const StaffView: React.FC<any> = ({
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className={`text-[10px] font-black tracking-tighter ${textSecondary}`}>{new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                    <p className={`text-[10px] font-black tracking-tighter ${textSecondary}`}>{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                   </div>
                 </motion.div>
               ))
@@ -734,7 +807,7 @@ const StaffView: React.FC<any> = ({
         {view === 'dashboard' && (
           <div className="flex-1 p-8 overflow-y-auto no-scrollbar space-y-8 pb-10">
             <h3 className={`text-3xl font-black tracking-tighter ${textPrimary}`}>MÉTRICAS</h3>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className={`p-6 rounded-[40px] border relative overflow-hidden ${isNightMode ? 'bg-green-500/5 border-green-500/10' : 'bg-green-50 border-green-100'}`}>
                 <CheckCircle2 size={40} className="text-green-500/20 absolute -right-2 -top-2" />
@@ -775,8 +848,8 @@ const StaffView: React.FC<any> = ({
             </div>
 
             <div className="p-8 bg-blue-600 text-white rounded-[44px] shadow-2xl shadow-blue-500/30 overflow-hidden relative">
-               <Zap size={140} className="absolute -bottom-10 -right-10 opacity-10" />
-               <div className="relative z-10">
+              <Zap size={140} className="absolute -bottom-10 -right-10 opacity-10" />
+              <div className="relative z-10">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-3 bg-white/20 rounded-2xl">
                     <Wifi className="w-6 h-6" />
@@ -796,7 +869,7 @@ const StaffView: React.FC<any> = ({
                     <span className="text-sm font-black tracking-tighter">OPTIMAL</span>
                   </div>
                 </div>
-               </div>
+              </div>
             </div>
           </div>
         )}
@@ -804,8 +877,8 @@ const StaffView: React.FC<any> = ({
 
       {/* Staff Nav Bottom */}
       <div className={`p-4 border-t flex items-center justify-around pb-12 sticky bottom-0 z-40 transition-colors duration-500 ${headerBg}`}>
-        <button 
-          onClick={() => setView('scan')} 
+        <button
+          onClick={() => setView('scan')}
           className={`flex flex-col items-center gap-2 group transition-all ${view === 'scan' ? 'text-blue-500 scale-110' : textSecondary}`}
         >
           <div className={`p-4 rounded-[28px] border transition-all ${view === 'scan' ? 'bg-blue-600 text-white border-blue-600 shadow-xl' : 'bg-transparent border-transparent group-active:bg-slate-500/10'}`}>
@@ -813,8 +886,8 @@ const StaffView: React.FC<any> = ({
           </div>
           <span className="text-[9px] font-black uppercase tracking-[0.2em]">Cámara</span>
         </button>
-        <button 
-          onClick={() => setView('history')} 
+        <button
+          onClick={() => setView('history')}
           className={`flex flex-col items-center gap-2 group transition-all ${view === 'history' ? 'text-blue-500 scale-110' : textSecondary}`}
         >
           <div className={`p-4 rounded-[28px] border transition-all ${view === 'history' ? 'bg-blue-600 text-white border-blue-600 shadow-xl' : 'bg-transparent border-transparent group-active:bg-slate-500/10'}`}>
@@ -822,8 +895,8 @@ const StaffView: React.FC<any> = ({
           </div>
           <span className="text-[9px] font-black uppercase tracking-[0.2em]">Auditar</span>
         </button>
-        <button 
-          onClick={() => setView('dashboard')} 
+        <button
+          onClick={() => setView('dashboard')}
           className={`flex flex-col items-center gap-2 group transition-all ${view === 'dashboard' ? 'text-blue-500 scale-110' : textSecondary}`}
         >
           <div className={`p-4 rounded-[28px] border transition-all ${view === 'dashboard' ? 'bg-blue-600 text-white border-blue-600 shadow-xl' : 'bg-transparent border-transparent group-active:bg-slate-500/10'}`}>
