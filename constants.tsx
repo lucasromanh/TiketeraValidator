@@ -4,8 +4,8 @@ import { OperationType, UserRole, TicketType, TicketStatus, User, EventSession, 
 export const MOCK_USERS: User[] = [
   {
     id: 'u1',
-    name: 'Juan Perez',
-    email: 'juan@test.com',
+    name: 'Celeste Peralta',
+    email: 'celeste@test.com',
     role: UserRole.ASSISTANT,
     isActive: true
   },
@@ -43,19 +43,19 @@ export const MOCK_EVENTS: EventSession[] = [
   {
     id: 'e1',
     operationType: OperationType.BOLICHE,
-    name: 'Noche Retro 90s',
-    venue: 'Pinar de Rocha',
-    dateTimeStart: '2024-05-20T23:30:00Z',
-    dateTimeEnd: '2024-05-21T06:00:00Z',
+    name: 'Fiesta Noche Retro 90s',
+    venue: 'Salta Capital',
+    dateTimeStart: '2024-06-15T23:30:00Z',
+    dateTimeEnd: '2024-06-16T06:00:00Z',
     status: 'ACTIVE'
   },
   {
     id: 'e2',
     operationType: OperationType.CINE,
     name: 'The Batman: Estreno',
-    venue: 'Cine Hoyts Abasto - Sala 4',
-    dateTimeStart: '2024-05-22T20:00:00Z',
-    dateTimeEnd: '2024-05-22T23:00:00Z',
+    venue: 'Cine Hoyts Salta',
+    dateTimeStart: '2024-06-22T20:00:00Z',
+    dateTimeEnd: '2024-06-22T23:00:00Z',
     status: 'UPCOMING'
   }
 ];
@@ -65,26 +65,38 @@ export const MOCK_TICKETS: Ticket[] = [
     id: 't1',
     eventId: 'e1',
     ownerUserId: 'u1',
-    code: 'ABC-123-XYZ',
+    code: 'ENTRY-90S-SALTA',
     type: TicketType.ENTRY,
-    status: TicketStatus.VALID
+    status: TicketStatus.VALID,
+    metadata: { detail: 'Acceso General' }
   },
   {
     id: 't2',
     eventId: 'e1',
     ownerUserId: 'u1',
-    code: 'DRK-999-LMN',
+    code: 'DRK-FERNET-01',
     type: TicketType.DRINK,
-    status: TicketStatus.VALID
+    status: TicketStatus.VALID,
+    metadata: { detail: 'FERNET CON COCA' }
   },
   {
     id: 't3',
     eventId: 'e1',
     ownerUserId: 'u1',
-    code: 'USED-555-QWE',
-    type: TicketType.ENTRY,
+    code: 'DRK-FERNET-02',
+    type: TicketType.DRINK,
+    status: TicketStatus.VALID,
+    metadata: { detail: 'FERNET CON COCA' }
+  },
+  {
+    id: 't4',
+    eventId: 'e1',
+    ownerUserId: 'u1',
+    code: 'USED-DRK-BEER',
+    type: TicketType.DRINK,
     status: TicketStatus.USED,
-    usedAt: '2024-05-20T23:45:00Z',
-    usedInMode: 'ENTRY'
+    usedAt: '2024-06-15T23:45:00Z',
+    usedInMode: 'DRINK',
+    metadata: { detail: 'CERVEZA' }
   }
 ];

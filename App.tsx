@@ -5,17 +5,46 @@ import {
 } from './types';
 import { MOCK_USERS, MOCK_EVENTS, MOCK_TICKETS } from './constants';
 import { 
-  QrCode, Users, LayoutDashboard, History, Settings, LogOut, 
-  MapPin, Clock, Moon, Sun, Smartphone, ShieldCheck, 
-  Calendar, CreditCard, ChevronRight, UserCircle, 
-  Zap, AlertTriangle, Wifi, WifiOff
+  QrCode, History, LayoutDashboard, LogOut, 
+  MapPin, Moon, Sun, ShieldCheck, 
+  Calendar, ChevronRight, UserCircle, 
+  Zap, AlertTriangle, Wifi, WifiOff, Ticket as TicketIcon,
+  GlassWater, CheckCircle2, XCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AnimationOverlay } from './components/AnimationOverlay';
 import { QRScanner } from './components/QRScanner';
 import { QRCodeSVG } from 'qrcode.react';
 
-// --- Sub-components moved outside to prevent remounting/focus loss ---
+// --- Mappings for localized and operation-specific logic ---
+
+const OPERATION_MODES: Record<OperationType, { label: string; value: string }[]> = {
+  [OperationType.BOLICHE]: [
+    { label: 'ENTRADA GENERAL', value: 'ENTRY' },
+    { label: 'ACCESO VIP', value: 'VIP' },
+    { label: 'BARRA / TRAGOS', value: 'DRINK' },
+  ],
+  [OperationType.EVENTO]: [
+    { label: 'ACCESO PPAL', value: 'ENTRY' },
+    { label: 'ACCESO VIP', value: 'VIP' },
+  ],
+  [OperationType.EVENTO_GRANDE]: [
+    { label: 'CONTROL ACCESO', value: 'ENTRY' },
+    { label: 'PUNTO CONSUMO', value: 'DRINK' },
+  ],
+  [OperationType.CINE]: [
+    { label: 'INGRESO SALA', value: 'ENTRY' },
+    { label: 'CANDY BAR', value: 'POPCORN' },
+  ]
+};
+
+const OPERATION_GATES = [
+  { label: 'PUERTA A', value: 'GATE A' },
+  { label: 'PUERTA B', value: 'GATE B' },
+  { label: 'ACCESO SUR', value: 'SOUTH ACCESS' },
+];
+
+// --- Sub-components ---
 
 const LoginView: React.FC<{
   pinInput: string;
@@ -51,21 +80,19 @@ const LoginView: React.FC<{
 
         <div className="space-y-6">
           <div className="relative flex justify-center gap-3">
-             {/* Visual representation of PIN dots */}
              {[0, 1, 2, 3].map((i) => (
                <div key={i} className={`w-12 h-16 rounded-xl border-2 flex items-center justify-center transition-all ${pinInput.length > i ? 'border-blue-500 bg-blue-500/10' : 'border-slate-800 bg-black'}`}>
                   {pinInput.length > i && <div className="w-3 h-3 bg-white rounded-full shadow-[0_0_10px_white]"></div>}
                </div>
              ))}
-             {/* Invisible real input for better focus and keyboard handling */}
              <input 
               ref={inputRef}
-              type="tel" // Use tel for numeric keypad on mobile
+              type="tel"
               autoFocus
               maxLength={4}
               value={pinInput}
               onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, ''); // Only digits
+                const val = e.target.value.replace(/\D/g, '');
                 setPinInput(val);
                 if (val.length === 4) handleLogin(val);
               }}
@@ -86,27 +113,32 @@ const LoginView: React.FC<{
 };
 
 const OperationSelector: React.FC<{ setOpProfile: (type: OperationType) => void }> = ({ setOpProfile }) => (
-  <div className="min-h-screen flex flex-col p-6 bg-slate-50">
-    <div className="mt-12 mb-8">
-      <h2 className="text-3xl font-black leading-tight">PERFIL DE<br/>OPERACIÓN</h2>
-      <div className="h-1 w-12 bg-blue-600 mt-2"></div>
+  <div className="min-h-screen flex flex-col p-8 bg-gradient-to-br from-slate-900 via-slate-800 to-black text-white">
+    <div className="mt-12 mb-10">
+      <h1 className="text-xl font-black italic tracking-tighter mb-4">
+        <span className="text-blue-500">MIRA</span> SOLE
+      </h1>
+      <h2 className="text-4xl font-black leading-tight tracking-tighter uppercase">MODO<br/>OPERATIVO</h2>
+      <div className="h-1.5 w-16 bg-blue-600 mt-4 rounded-full shadow-[0_0_15px_rgba(37,99,235,0.6)]"></div>
     </div>
     
-    <div className="grid grid-cols-1 gap-4">
+    <div className="grid grid-cols-1 gap-5">
       {Object.values(OperationType).map((type) => (
-        <button
+        <motion.button
+          whileTap={{ scale: 0.97 }}
           key={type}
           onClick={() => setOpProfile(type)}
-          className="flex items-center justify-between p-6 bg-white border border-slate-200 rounded-3xl shadow-sm hover:border-blue-500 active:scale-[0.98] transition-all group"
+          className="flex items-center justify-between p-7 bg-white/5 border border-white/10 rounded-[36px] shadow-2xl hover:bg-white/10 active:border-blue-500 transition-all group relative overflow-hidden"
         >
-          <div className="text-left">
-            <span className="text-[10px] font-black text-blue-600 tracking-widest uppercase">MODO</span>
-            <h3 className="text-xl font-bold group-hover:text-blue-600 transition-colors">{type.replace('_', ' ')}</h3>
+          <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl group-hover:bg-blue-500/10 transition-colors"></div>
+          <div className="text-left relative z-10">
+            <span className="text-[10px] font-black text-blue-500 tracking-[0.3em] uppercase">PERFIL</span>
+            <h3 className="text-2xl font-black mt-1 group-hover:text-blue-400 transition-colors tracking-tight">{type.replace('_', ' ')}</h3>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center group-hover:bg-blue-50 transition-colors">
-            <ChevronRight className="w-6 h-6 text-slate-400 group-hover:text-blue-500" />
+          <div className="w-14 h-14 rounded-[24px] bg-white/5 flex items-center justify-center border border-white/5 group-hover:border-blue-500/30 transition-all">
+            <ChevronRight className="w-7 h-7 text-slate-500 group-hover:text-blue-500" />
           </div>
-        </button>
+        </motion.button>
       ))}
     </div>
   </div>
@@ -118,25 +150,22 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentRole, setCurrentRole] = useState<UserRole | null>(null);
   const [opProfile, setOpProfile] = useState<OperationType | null>(null);
-  const [isNightMode, setIsNightMode] = useState(false);
+  const [isNightMode, setIsNightMode] = useState(true); 
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [pinInput, setPinInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   
-  // App Data
   const [events, setEvents] = useState<EventSession[]>(MOCK_EVENTS);
   const [tickets, setTickets] = useState<Ticket[]>(MOCK_TICKETS);
   const [scanLogs, setScanLogs] = useState<ScanAttempt[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-  const [activeGate, setActiveGate] = useState('ENTRADA 1');
+  const [activeGate, setActiveGate] = useState('GATE A');
   const [activeMode, setActiveMode] = useState('ENTRY');
 
-  // Animation Control
   const [animStatus, setAnimStatus] = useState<'processing' | 'approved' | 'rejected' | null>(null);
   const [animReason, setAnimReason] = useState<string | undefined>(undefined);
   const [animDetails, setAnimDetails] = useState<string | undefined>(undefined);
 
-  // Rate Limiting Logic
   const [scanCount, setScanCount] = useState(0);
   const [cooldown, setCooldown] = useState(false);
 
@@ -261,8 +290,6 @@ const App: React.FC = () => {
     setError(null);
   };
 
-  // --- Render logic ---
-
   if (!currentUser) {
     return (
       <LoginView 
@@ -276,12 +303,9 @@ const App: React.FC = () => {
   }
 
   if (currentRole === UserRole.ASSISTANT) {
-    // Assistant View remains largely same, just extracted or inline
     const myTickets = tickets.filter(t => t.ownerUserId === currentUser?.id);
     return (
       <AssistantView 
-        isNightMode={isNightMode} 
-        setIsNightMode={setIsNightMode} 
         currentUser={currentUser} 
         logout={logout} 
         myTickets={myTickets} 
@@ -322,72 +346,120 @@ const App: React.FC = () => {
   );
 };
 
-// --- View Implementation Parts (moved out to prevent remounting) ---
+// --- View Implementations ---
 
-const AssistantView: React.FC<any> = ({ isNightMode, setIsNightMode, currentUser, logout, myTickets, events }) => {
+const AssistantView: React.FC<any> = ({ currentUser, logout, myTickets, events }) => {
   const [viewingTicket, setViewingTicket] = useState<Ticket | null>(null);
 
+  const getTicketIcon = (type: TicketType) => {
+    if (type === TicketType.DRINK || type === TicketType.POPCORN) return <GlassWater className="w-5 h-5" />;
+    return <QrCode className="w-5 h-5" />;
+  };
+
   return (
-    <div className={`min-h-screen flex flex-col ${isNightMode ? 'bg-black text-white' : 'bg-slate-50 text-slate-900'}`}>
-      <div className="p-6 flex items-center justify-between border-b border-slate-200 dark:border-white/10">
-        <div>
-          <h1 className="text-2xl font-black">MIS TICKETS</h1>
-          <p className="text-xs font-bold text-blue-500 uppercase">{currentUser?.name}</p>
-        </div>
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-black text-white">
+      <div className="p-6 flex items-center justify-between border-b border-white/5 backdrop-blur-md sticky top-0 z-40">
         <div className="flex items-center gap-3">
-          <button onClick={() => setIsNightMode(!isNightMode)} className="p-2 rounded-xl bg-slate-200 dark:bg-white/10">
-            {isNightMode ? <Sun /> : <Moon />}
-          </button>
-          <button onClick={logout} className="p-2 rounded-xl bg-red-100 text-red-600">
-            <LogOut />
-          </button>
+          <div className="w-10 h-10 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
+            <span className="text-blue-500 font-black">CP</span>
+          </div>
+          <div>
+            <h1 className="text-xl font-black italic tracking-tighter leading-none">
+              <span className="text-blue-500">MIRA</span> SOLE
+            </h1>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 leading-none">{currentUser?.name}</p>
+          </div>
         </div>
+        <button onClick={logout} className="p-3 rounded-2xl bg-white/5 border border-white/10 text-red-400 active:scale-95 transition-all">
+          <LogOut size={18} />
+        </button>
       </div>
 
-      <div className="flex-1 p-6 space-y-4 overflow-y-auto no-scrollbar pb-24">
+      <div className="flex-1 p-6 space-y-8 overflow-y-auto no-scrollbar pb-32">
+        <div className="bg-white/5 rounded-[40px] p-8 border border-white/5 relative overflow-hidden">
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl"></div>
+          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-500 mb-3">Dashboard Usuario</p>
+          <h2 className="text-3xl font-black tracking-tighter leading-tight">Hola,<br/>{currentUser?.name.split(' ')[0]}.</h2>
+          <p className="text-xs text-slate-500 mt-2 font-bold uppercase tracking-widest opacity-80">Salta • {myTickets.length} tickets activos</p>
+        </div>
+
+        <div className="flex items-center justify-between px-2">
+           <h3 className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-600">Tus Accesos</h3>
+           <div className="h-px flex-1 bg-white/5 mx-4"></div>
+        </div>
+
         {myTickets.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400 italic">
-            <Smartphone className="w-12 h-12 mb-4 opacity-20" />
-            <p>No tienes tickets disponibles</p>
+          <div className="flex flex-col items-center justify-center py-32 text-slate-600 italic">
+            <TicketIcon className="w-12 h-12 mb-4 opacity-10" />
+            <p className="text-xs uppercase font-black tracking-widest">No tienes tickets</p>
           </div>
         ) : (
-          myTickets.map(ticket => {
-            const event = events.find(e => e.id === ticket.eventId);
-            return (
-              <div 
-                key={ticket.id} 
-                onClick={() => setViewingTicket(ticket)}
-                className={`p-5 rounded-3xl border-2 transition-all active:scale-[0.97] ${
-                  isNightMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200'
-                }`}
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${
-                      ticket.status === TicketStatus.VALID ? 'bg-green-500/20 text-green-500' : 'bg-slate-500/20 text-slate-500'
-                    }`}>
-                      {ticket.status}
-                    </span>
-                    <h3 className="text-lg font-bold mt-2">{event?.name || 'Evento'}</h3>
-                    <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
-                      <MapPin className="w-3 h-3" /> {event?.venue}
-                    </p>
+          <div className="space-y-5">
+            {myTickets.map(ticket => {
+              const event = events.find(e => e.id === ticket.eventId);
+              const isUsed = ticket.status === TicketStatus.USED;
+              const isDrink = ticket.type === TicketType.DRINK;
+
+              return (
+                <motion.div 
+                  whileTap={{ scale: 0.98 }}
+                  key={ticket.id} 
+                  onClick={() => setViewingTicket(ticket)}
+                  className={`group relative overflow-hidden rounded-[36px] border transition-all ${
+                    isUsed ? 'bg-black/40 border-white/5 opacity-50 grayscale' : 'bg-slate-800/40 border-white/10 shadow-2xl backdrop-blur-sm'
+                  }`}
+                >
+                  <div className="p-6">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1 pr-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className={`text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
+                            ticket.status === TicketStatus.VALID ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(59,130,246,0.6)]' : 'bg-slate-700 text-slate-400'
+                          }`}>
+                            {isUsed ? 'USADO' : 'ACTIVO'}
+                          </span>
+                          <span className={`text-[9px] font-black uppercase tracking-widest ${isDrink ? 'text-amber-500' : 'text-blue-500'}`}>
+                            {isDrink ? 'CONSUMICIÓN' : 'ENTRY'}
+                          </span>
+                        </div>
+                        <h3 className="text-xl font-black leading-tight mb-2 tracking-tight group-hover:text-blue-400 transition-colors">{event?.name || 'Evento'}</h3>
+                        <p className="text-[10px] font-black text-slate-500 flex items-center gap-1.5 uppercase tracking-widest">
+                          <MapPin size={10} className="text-blue-500" /> {event?.venue || 'Salta'}
+                        </p>
+                      </div>
+                      
+                      <div className={`w-16 h-16 rounded-3xl flex items-center justify-center transition-all ${
+                        isUsed ? 'bg-white/5' : isDrink ? 'bg-amber-500/10 text-amber-500 border border-amber-500/10 shadow-[0_0_20px_rgba(245,158,11,0.1)]' : 'bg-blue-500/10 text-blue-500 border border-blue-500/10 shadow-[0_0_20px_rgba(59,130,246,0.1)]'
+                      }`}>
+                        {getTicketIcon(ticket.type)}
+                      </div>
+                    </div>
+
+                    <div className="mt-8 flex items-center justify-between pt-4 border-t border-white/5">
+                      <div>
+                        <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-1">CÓDIGO DIGITAL</p>
+                        <p className="text-xs font-black text-white uppercase tracking-tighter">
+                          {ticket.metadata?.detail || (isDrink ? 'BEBIDA' : 'ACCESO')}
+                        </p>
+                      </div>
+                      
+                      {!isUsed ? (
+                        <div className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 rounded-full shadow-lg shadow-blue-500/20 active:scale-90 transition-all">
+                          <span className="text-[10px] font-black uppercase tracking-widest">VER QR</span>
+                          <ChevronRight size={12} />
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                           <ShieldCheck size={14} className="text-slate-600" />
+                           <p className="text-[9px] font-black text-slate-600 uppercase italic">Ya Validado</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="bg-blue-500/10 p-2 rounded-xl">
-                    <CreditCard className="w-6 h-6 text-blue-500" />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-white/5">
-                  <div className="flex items-center gap-2 text-xs font-bold opacity-60">
-                    <Clock className="w-3 h-3" /> HOY - 23:30HS
-                  </div>
-                  <div className="font-black text-sm uppercase tracking-tighter text-blue-500">
-                    {ticket.type}
-                  </div>
-                </div>
-              </div>
-            );
-          })
+                </motion.div>
+              );
+            })}
+          </div>
         )}
       </div>
 
@@ -398,26 +470,34 @@ const AssistantView: React.FC<any> = ({ isNightMode, setIsNightMode, currentUser
             className="fixed inset-0 z-50 bg-white flex flex-col text-black p-8"
           >
             <div className="flex justify-end">
-              <button onClick={() => setViewingTicket(null)} className="p-4 text-slate-400 font-black text-xs uppercase tracking-[0.2em]">Cerrar [X]</button>
+              <button onClick={() => setViewingTicket(null)} className="p-4 text-slate-400 font-black text-xs uppercase tracking-[0.2em] active:scale-95 transition-all">Cerrar [X]</button>
             </div>
             <div className="flex-1 flex flex-col items-center justify-center">
               <div className="text-center mb-10">
-                <h2 className="text-3xl font-black mb-2 leading-tight">{events.find(e => e.id === viewingTicket.eventId)?.name}</h2>
-                <p className="font-bold text-blue-600 uppercase tracking-[0.3em] text-sm">{viewingTicket.type}</p>
+                <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.6em] mb-4 block leading-none">Identificador Digital</span>
+                <h2 className="text-4xl font-black mb-2 leading-tight tracking-tighter uppercase">{events.find(e => e.id === viewingTicket.eventId)?.name}</h2>
+                <div className="h-1 w-12 bg-blue-600 mx-auto rounded-full mb-4"></div>
+                <p className="font-bold text-slate-400 uppercase tracking-[0.3em] text-[10px]">{viewingTicket.metadata?.detail || viewingTicket.type}</p>
               </div>
               
-              <div className="p-6 bg-white border-[12px] border-black rounded-[40px] mb-10 shadow-[0_30px_60px_-12px_rgba(0,0,0,0.3)]">
-                <QRCodeSVG value={`ticket:${viewingTicket.code}`} size={240} level="H" includeMargin={false} />
+              <div className="p-8 bg-white border-[16px] border-black rounded-[60px] mb-12 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] relative group">
+                <div className="absolute -top-5 -left-5 w-10 h-10 bg-white rounded-full border-4 border-black"></div>
+                <div className="absolute -top-5 -right-5 w-10 h-10 bg-white rounded-full border-4 border-black"></div>
+                <div className="absolute -bottom-5 -left-5 w-10 h-10 bg-white rounded-full border-4 border-black"></div>
+                <div className="absolute -bottom-5 -right-5 w-10 h-10 bg-white rounded-full border-4 border-black"></div>
+                <QRCodeSVG value={`ticket:${viewingTicket.code}`} size={240} level="H" includeMargin={false} className="group-hover:scale-105 transition-transform duration-500" />
               </div>
               
-              <div className="flex items-center gap-2 px-6 py-3 bg-slate-50 border border-slate-100 rounded-full">
-                <ShieldCheck className="w-5 h-5 text-green-600" />
-                <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Código Dinámico Encriptado</p>
+              <div className="flex flex-col items-center gap-6">
+                <div className="flex items-center gap-3 px-8 py-3.5 bg-slate-50 border border-slate-100 rounded-full shadow-sm">
+                  <ShieldCheck className="w-6 h-6 text-green-600" />
+                  <p className="text-[11px] font-black uppercase text-slate-500 tracking-[0.2em]">VALIDACIÓN SEGURA</p>
+                </div>
+                
+                <p className="text-[10px] text-center text-slate-400 italic font-bold uppercase tracking-[0.1em] px-12 leading-relaxed opacity-60">
+                  Salta • {new Date().toLocaleDateString()} • {viewingTicket.id.toUpperCase()}
+                </p>
               </div>
-              
-              <p className="mt-12 text-[10px] text-center text-slate-400 italic font-bold uppercase tracking-[0.1em] px-12 leading-relaxed">
-                Presente este código en puerta. Use brillo máximo.
-              </p>
             </div>
           </motion.div>
         )}
@@ -436,33 +516,65 @@ const StaffView: React.FC<any> = ({
   const filteredEvents = events.filter(e => e.operationType === opProfile);
   const selectedEvent = events.find(e => e.id === selectedEventId);
 
+  // Styling helpers based on theme
+  const themeClasses = isNightMode 
+    ? "bg-gradient-to-br from-slate-900 via-slate-800 to-black text-white" 
+    : "bg-gradient-to-br from-slate-100 via-slate-50 to-white text-slate-900";
+  
+  const cardClasses = isNightMode 
+    ? "bg-white/5 border-white/10" 
+    : "bg-white border-slate-200 shadow-xl";
+  
+  const textPrimary = isNightMode ? "text-white" : "text-slate-900";
+  const textSecondary = isNightMode ? "text-slate-400" : "text-slate-500";
+  const headerBg = isNightMode ? "bg-black/40 backdrop-blur-xl border-white/5" : "bg-white/80 backdrop-blur-xl border-slate-200";
+
+  // Filter modes based on operation type
+  const availableModes = OPERATION_MODES[opProfile as OperationType] || [];
+
   if (!selectedEventId) {
     return (
-      <div className="min-h-screen bg-slate-50 p-6 flex flex-col">
+      <div className={`min-h-screen p-8 flex flex-col ${themeClasses}`}>
         <div className="flex items-center justify-between mb-12">
           <div>
-            <h1 className="text-2xl font-black">{opProfile?.replace('_', ' ')}</h1>
-            <p className="text-[10px] font-black text-slate-400 tracking-widest uppercase">Selector de Sesión</p>
+            <h1 className={`text-xl font-black italic tracking-tighter leading-none mb-1 ${textPrimary}`}>
+              <span className="text-blue-500">MIRA</span> SOLE
+            </h1>
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-500">{opProfile?.replace('_', ' ')}</p>
           </div>
-          <button onClick={logout} className="p-3 bg-white border border-slate-200 text-red-600 rounded-2xl shadow-sm"><LogOut size={20} /></button>
+          <button onClick={logout} className={`p-4 rounded-3xl active:scale-95 transition-all flex items-center justify-center ${cardClasses}`}>
+            <LogOut size={20} className="text-red-500" />
+          </button>
+        </div>
+
+        <div className="mb-10">
+          <h2 className={`text-4xl font-black tracking-tighter leading-none mb-2 ${textPrimary}`}>SESIONES</h2>
+          <p className={`text-[11px] font-black uppercase tracking-[0.3em] ${textSecondary}`}>SELECCIONA EVENTO ACTIVO</p>
+          <div className="h-1.5 w-12 bg-blue-600 mt-4 rounded-full"></div>
         </div>
         
-        <div className="space-y-4">
+        <div className="space-y-5 flex-1 overflow-y-auto no-scrollbar pb-10">
           {filteredEvents.map(ev => (
-            <button 
+            <motion.button 
+              whileTap={{ scale: 0.98 }}
               key={ev.id} 
               onClick={() => setSelectedEventId(ev.id)}
-              className="w-full p-6 bg-white rounded-3xl border border-slate-200 text-left shadow-sm active:scale-95 transition-all group hover:border-blue-500"
+              className={`w-full p-8 rounded-[40px] border text-left transition-all group relative overflow-hidden ${cardClasses}`}
             >
-              <h3 className="text-xl font-black group-hover:text-blue-600 transition-colors">{ev.name}</h3>
-              <p className="text-slate-500 font-medium text-sm mt-1">{ev.venue}</p>
-              <div className="mt-6 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-blue-500 font-black text-[10px] uppercase tracking-wider bg-blue-50 px-3 py-1.5 rounded-full">
-                  <Calendar className="w-3.5 h-3.5" /> HOY
+              <h3 className={`text-2xl font-black tracking-tight leading-tight mb-2 group-hover:text-blue-500 transition-colors ${textPrimary}`}>{ev.name}</h3>
+              <p className={`text-xs font-bold flex items-center gap-1.5 uppercase tracking-wider mb-6 ${textSecondary}`}>
+                <MapPin size={12} className="text-blue-500" /> {ev.venue}
+              </p>
+              
+              <div className="flex items-center justify-between">
+                <div className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] ${isNightMode ? 'bg-blue-500/10 text-blue-400 border border-blue-500/10' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
+                  LISTO PARA VALIDAR
                 </div>
-                <ChevronRight className="w-5 h-5 text-slate-300" />
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-all ${isNightMode ? 'bg-white/5 border-white/5 group-hover:border-blue-500' : 'bg-slate-50 border-slate-100 group-hover:border-blue-300'}`}>
+                   <ChevronRight className={`w-6 h-6 transition-all ${isNightMode ? 'text-slate-500 group-hover:text-blue-500' : 'text-slate-400 group-hover:text-blue-600'}`} />
+                </div>
               </div>
-            </button>
+            </motion.button>
           ))}
         </div>
       </div>
@@ -470,7 +582,7 @@ const StaffView: React.FC<any> = ({
   }
 
   return (
-    <div className={`min-h-screen flex flex-col ${isNightMode ? 'bg-black text-white' : 'bg-slate-50 text-slate-900'}`}>
+    <div className={`min-h-screen flex flex-col ${themeClasses}`}>
       <AnimationOverlay 
         status={animStatus} 
         reason={animReason} 
@@ -482,147 +594,179 @@ const StaffView: React.FC<any> = ({
         }} 
       />
 
-      <div className="p-4 border-b border-slate-200 dark:border-white/10 flex items-center justify-between bg-white dark:bg-[#0a0a0a] sticky top-0 z-40 backdrop-blur-md">
+      <div className={`p-4 border-b flex items-center justify-between sticky top-0 z-40 transition-colors duration-500 ${headerBg}`}>
         <div className="flex items-center gap-3 overflow-hidden">
-          <button onClick={() => setSelectedEventId(null)} className="p-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10"><ChevronRight size={18} className="rotate-180" /></button>
+          <button onClick={() => setSelectedEventId(null)} className={`p-2.5 rounded-2xl border active:scale-90 transition-all ${cardClasses}`}>
+            <ChevronRight size={20} className={`rotate-180 ${textPrimary}`} />
+          </button>
           <div className="overflow-hidden">
-            <h2 className="text-xs font-black truncate uppercase tracking-tight">{selectedEvent?.name}</h2>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[9px] font-black uppercase text-blue-500 whitespace-nowrap">{activeGate}</span>
-              <span className="text-[9px] font-black text-slate-300">/</span>
-              <span className="text-[9px] font-black uppercase text-purple-500 whitespace-nowrap">{activeMode}</span>
+            <h2 className={`text-[11px] font-black truncate uppercase tracking-tight leading-none mb-1 ${textPrimary}`}>{selectedEvent?.name}</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] font-black uppercase text-blue-500">{activeGate}</span>
+              <span className={`text-[9px] font-black ${textSecondary}`}>•</span>
+              <span className="text-[9px] font-black uppercase text-purple-500">{availableModes.find(m => m.value === activeMode)?.label || activeMode}</span>
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 ml-2">
-          {isOffline ? <WifiOff className="text-red-500 w-4 h-4" /> : <Wifi className="text-green-500 w-4 h-4" />}
-          <button onClick={() => setIsNightMode(!isNightMode)} className="p-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10">
-            {isNightMode ? <Sun size={18} /> : <Moon size={18} />}
+        <div className="flex items-center gap-3">
+          {isOffline ? <WifiOff size={18} className="text-red-500" /> : <Wifi size={18} className="text-green-500" />}
+          <button onClick={() => setIsNightMode(!isNightMode)} className={`p-2.5 rounded-2xl border active:scale-95 transition-all ${cardClasses}`}>
+            {isNightMode ? <Sun size={20} className="text-amber-400" /> : <Moon size={20} className="text-blue-600" />}
           </button>
         </div>
       </div>
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {view === 'scan' && (
-          <div className="flex-1 flex flex-col p-6 space-y-6">
-            <div className="flex flex-wrap gap-2">
-              <div className="relative flex-1">
-                <select 
-                  className="w-full px-4 py-3 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-[10px] font-black appearance-none outline-none uppercase tracking-widest shadow-sm"
-                  value={activeMode}
-                  onChange={(e) => setActiveMode(e.target.value)}
-                >
-                  <option value="ENTRY">PUERTA / ENTRADA</option>
-                  <option value="VIP">ACCESO VIP</option>
-                  <option value="DRINK">BARRA / BEBIDA</option>
-                  <option value="POPCORN">BAR / CINE</option>
-                </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-40"><ChevronRight size={14} className="rotate-90" /></div>
+          <div className="flex-1 flex flex-col p-8 space-y-8">
+            {/* Custom Styled Selects */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className={`text-[9px] font-black uppercase tracking-[0.2em] ml-2 ${textSecondary}`}>Punto de Control</label>
+                <div className="relative group">
+                  <select 
+                    className={`w-full px-5 py-4 border rounded-[28px] text-[11px] font-black appearance-none outline-none uppercase tracking-tight shadow-sm transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 ${
+                      isNightMode ? 'bg-slate-800/80 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+                    }`}
+                    value={activeMode}
+                    onChange={(e) => setActiveMode(e.target.value)}
+                  >
+                    {availableModes.map(m => (
+                      <option key={m.value} value={m.value} className="bg-slate-900 text-white">{m.label}</option>
+                    ))}
+                  </select>
+                  <ChevronRight size={14} className={`absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none rotate-90 transition-opacity group-hover:opacity-100 opacity-40 ${textPrimary}`} />
+                </div>
               </div>
-              <div className="relative flex-1">
-                <select 
-                  className="w-full px-4 py-3 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-[10px] font-black appearance-none outline-none uppercase tracking-widest shadow-sm"
-                  value={activeGate}
-                  onChange={(e) => setActiveGate(e.target.value)}
-                >
-                  <option value="GATE A">GATE A</option>
-                  <option value="GATE B">GATE B</option>
-                  <option value="MAIN ACCESS">ACCESO PPAL</option>
-                </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-40"><ChevronRight size={14} className="rotate-90" /></div>
+              
+              <div className="space-y-1.5">
+                <label className={`text-[9px] font-black uppercase tracking-[0.2em] ml-2 ${textSecondary}`}>Ubicación / Gate</label>
+                <div className="relative group">
+                  <select 
+                    className={`w-full px-5 py-4 border rounded-[28px] text-[11px] font-black appearance-none outline-none uppercase tracking-tight shadow-sm transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 ${
+                      isNightMode ? 'bg-slate-800/80 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+                    }`}
+                    value={activeGate}
+                    onChange={(e) => setActiveGate(e.target.value)}
+                  >
+                    {OPERATION_GATES.map(g => (
+                      <option key={g.value} value={g.value} className="bg-slate-900 text-white">{g.label}</option>
+                    ))}
+                  </select>
+                  <ChevronRight size={14} className={`absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none rotate-90 transition-opacity group-hover:opacity-100 opacity-40 ${textPrimary}`} />
+                </div>
               </div>
             </div>
 
-            <div className="flex-1 flex items-center justify-center relative">
+            <div className="flex-1 flex items-center justify-center relative px-2">
               {cooldown ? (
-                <div className="w-full aspect-square bg-red-500/5 rounded-[40px] flex flex-col items-center justify-center text-red-500 p-8 text-center border-2 border-dashed border-red-500/20">
-                  <AlertTriangle className="w-12 h-12 mb-4 animate-bounce" />
-                  <h3 className="text-xl font-black tracking-tight">PROTECCIÓN ACTIVA</h3>
-                  <p className="mt-2 font-bold uppercase text-[10px] tracking-widest leading-relaxed">Escaneo bloqueado por 30 segundos debido a actividad inusual.</p>
+                <div className="w-full aspect-square bg-red-500/5 rounded-[60px] flex flex-col items-center justify-center text-red-500 p-10 text-center border-2 border-dashed border-red-500/20">
+                  <AlertTriangle size={64} className="mb-4 animate-bounce" />
+                  <h3 className="text-2xl font-black">RATE LIMIT</h3>
+                  <p className="mt-2 text-xs font-bold uppercase tracking-widest leading-relaxed">Demasiados escaneos. Espera 30s.</p>
                 </div>
               ) : (
-                <div className="w-full max-w-xs aspect-square relative group">
+                <div className="w-full max-w-sm aspect-square relative group">
                   <QRScanner onScan={handleValidate} active={view === 'scan'} />
-                  <div className="absolute top-4 right-4 flex items-center gap-1.5 bg-black/60 backdrop-blur-lg px-3 py-1.5 rounded-full text-[9px] font-black text-white border border-white/10">
-                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div> SYNC OK
+                  <div className={`absolute -top-4 -right-4 flex items-center gap-2 backdrop-blur-3xl px-6 py-3 rounded-full text-[10px] font-black border shadow-2xl ${
+                    isNightMode ? 'bg-black/80 text-white border-white/10' : 'bg-white/90 text-slate-900 border-slate-100'
+                  }`}>
+                    <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(34,197,94,0.8)]"></div> 
+                    <span className="tracking-[0.2em]">SYNC ACTIVE</span>
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="text-center pb-4">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Escaneando automáticamente...</p>
-              <p className="mt-2 text-[9px] text-slate-300 uppercase font-bold">Atomic Core Engine v4.0</p>
+            <div className="text-center pb-8">
+              <div className="flex items-center justify-center gap-3 opacity-40">
+                <div className={`h-px w-8 ${isNightMode ? 'bg-white' : 'bg-slate-900'}`}></div>
+                <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${textPrimary}`}>Lectura Activa</p>
+                <div className={`h-px w-8 ${isNightMode ? 'bg-white' : 'bg-slate-900'}`}></div>
+              </div>
             </div>
           </div>
         )}
 
         {view === 'history' && (
-          <div className="flex-1 p-6 overflow-y-auto space-y-3">
-             <div className="flex items-center justify-between mb-4">
-               <h3 className="text-lg font-black tracking-tight uppercase">AUDITORÍA LIVE</h3>
-               <span className="text-[10px] font-black bg-blue-500 text-white px-2 py-1 rounded-md">{scanLogs.length} RECIENTES</span>
-             </div>
+          <div className="flex-1 p-8 overflow-y-auto no-scrollbar space-y-4">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className={`text-3xl font-black tracking-tighter ${textPrimary}`}>AUDITORÍA</h3>
+                <p className={`text-[10px] font-black uppercase tracking-[0.4em] ${textSecondary}`}>Últimos Escaneos</p>
+              </div>
+              <span className="text-[10px] font-black bg-blue-600 text-white px-4 py-2 rounded-2xl shadow-lg">{scanLogs.length} LOGS</span>
+            </div>
+            
             {scanLogs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-24 opacity-20">
-                <History size={40} className="mb-2" />
-                <p className="font-black text-xs uppercase tracking-widest">Sin actividad</p>
+              <div className={`flex flex-col items-center justify-center py-32 opacity-20 ${textPrimary}`}>
+                <History size={60} className="mb-4" />
+                <p className="font-black text-sm uppercase tracking-[0.5em]">Sin Actividad</p>
               </div>
             ) : (
               scanLogs.map(log => (
-                <div key={log.id} className={`p-4 rounded-2xl border flex items-center justify-between ${
-                  isNightMode ? 'bg-white/5 border-white/5' : 'bg-white border-slate-100 shadow-sm'
-                }`}>
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${log.result === 'APPROVED' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]'}`}></div>
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                  key={log.id} 
+                  className={`p-6 rounded-[36px] border flex items-center justify-between ${cardClasses}`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`w-3 h-3 rounded-full ${log.result === 'APPROVED' ? 'bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.7)]' : 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.7)]'}`}></div>
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-tight leading-none mb-1">
-                        {log.mode} - {log.gate}
-                      </p>
-                      <p className={`text-[9px] font-bold uppercase ${log.result === 'APPROVED' ? 'text-green-500' : 'text-red-500'}`}>
-                        {log.result} {log.reason ? `• ${log.reason}` : ''}
-                      </p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${log.result === 'APPROVED' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
+                          {log.result}
+                        </span>
+                        <p className={`text-[11px] font-black uppercase truncate max-w-[120px] ${textPrimary}`}>{log.mode}</p>
+                      </div>
+                      <p className={`text-[9px] font-bold uppercase tracking-widest opacity-40 ${textPrimary}`}>GATE: {log.gate}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-[9px] font-black text-slate-400">{new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}</p>
+                    <p className={`text-[10px] font-black tracking-tighter ${textSecondary}`}>{new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                   </div>
-                </div>
+                </motion.div>
               ))
             )}
           </div>
         )}
 
         {view === 'dashboard' && (
-          <div className="flex-1 p-6 overflow-y-auto space-y-6">
-            <h3 className="text-lg font-black uppercase tracking-tight">RENDIMIENTO SESIÓN</h3>
+          <div className="flex-1 p-8 overflow-y-auto no-scrollbar space-y-8 pb-10">
+            <h3 className={`text-3xl font-black tracking-tighter ${textPrimary}`}>MÉTRICAS</h3>
             
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-5 bg-green-500/5 border border-green-500/20 rounded-[32px]">
-                <p className="text-[9px] font-black text-green-600 uppercase tracking-widest mb-1 opacity-60">ÉXITO</p>
-                <p className="text-4xl font-black text-green-600 leading-none">{scanLogs.filter(l => l.result === 'APPROVED').length}</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className={`p-6 rounded-[40px] border relative overflow-hidden ${isNightMode ? 'bg-green-500/5 border-green-500/10' : 'bg-green-50 border-green-100'}`}>
+                <CheckCircle2 size={40} className="text-green-500/20 absolute -right-2 -top-2" />
+                <p className="text-[10px] font-black text-green-600 uppercase tracking-widest mb-1">OK</p>
+                <p className={`text-5xl font-black ${isNightMode ? 'text-green-500' : 'text-green-600'}`}>
+                  {scanLogs.filter(l => l.result === 'APPROVED').length}
+                </p>
               </div>
-              <div className="p-5 bg-red-500/5 border border-red-500/20 rounded-[32px]">
-                <p className="text-[9px] font-black text-red-600 uppercase tracking-widest mb-1 opacity-60">RECHAZO</p>
-                <p className="text-4xl font-black text-red-600 leading-none">{scanLogs.filter(l => l.result === 'REJECTED').length}</p>
+              <div className={`p-6 rounded-[40px] border relative overflow-hidden ${isNightMode ? 'bg-red-500/5 border-red-500/10' : 'bg-red-50 border-red-100'}`}>
+                <XCircle size={40} className="text-red-500/20 absolute -right-2 -top-2" />
+                <p className="text-[10px] font-black text-red-600 uppercase tracking-widest mb-1">FAIL</p>
+                <p className={`text-5xl font-black ${isNightMode ? 'text-red-500' : 'text-red-600'}`}>
+                  {scanLogs.filter(l => l.result === 'REJECTED').length}
+                </p>
               </div>
             </div>
 
-            <div className="p-6 bg-white dark:bg-white/5 rounded-[32px] border border-slate-200 dark:border-white/10 shadow-sm">
-              <h4 className="text-[10px] font-black uppercase text-slate-400 mb-6 tracking-[0.2em] text-center">ANÁLISIS DE INCIDENCIAS</h4>
-              <div className="space-y-4">
+            <div className={`p-8 rounded-[40px] border ${cardClasses}`}>
+              <h4 className={`text-[10px] font-black uppercase text-center mb-8 tracking-[0.4em] ${textSecondary}`}>CAUSAS RECHAZO</h4>
+              <div className="space-y-6">
                 {['USED', 'WRONG_EVENT', 'NOT_FOUND', 'RATE_LIMIT'].map(reason => {
                   const count = scanLogs.filter(l => l.reason === reason).length;
                   const total = scanLogs.filter(l => l.result === 'REJECTED').length || 1;
                   const pct = Math.round((count / total) * 100);
                   return (
                     <div key={reason}>
-                      <div className="flex justify-between text-[10px] font-black mb-1.5 uppercase tracking-tighter">
-                        <span className="text-slate-500">{reason}</span>
-                        <span className="text-slate-800 dark:text-white">{count} ({pct}%)</span>
+                      <div className="flex justify-between text-[11px] font-black mb-2 uppercase tracking-tight">
+                        <span className={textSecondary}>{reason.replace('_', ' ')}</span>
+                        <span className={textPrimary}>{count} <span className="text-[9px] opacity-40 ml-1">({pct}%)</span></span>
                       </div>
-                      <div className="h-2 w-full bg-slate-100 dark:bg-white/10 rounded-full overflow-hidden">
-                        <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} className={`h-full ${pct > 0 ? 'bg-red-500' : 'bg-slate-300 opacity-20'}`}></motion.div>
+                      <div className={`h-2 rounded-full overflow-hidden ${isNightMode ? 'bg-white/5' : 'bg-slate-100'}`}>
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} className={`h-full bg-red-500 ${pct > 0 ? 'shadow-[0_0_8px_rgba(239,68,68,0.5)]' : ''}`}></motion.div>
                       </div>
                     </div>
                   );
@@ -630,44 +774,62 @@ const StaffView: React.FC<any> = ({
               </div>
             </div>
 
-            <div className="p-6 bg-blue-600 text-white rounded-[32px] shadow-2xl shadow-blue-500/30 overflow-hidden relative">
-               <div className="absolute top-0 right-0 p-4 opacity-10"><Zap size={80} /></div>
+            <div className="p-8 bg-blue-600 text-white rounded-[44px] shadow-2xl shadow-blue-500/30 overflow-hidden relative">
+               <Zap size={140} className="absolute -bottom-10 -right-10 opacity-10" />
                <div className="relative z-10">
-                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] mb-3 opacity-70">ESTADO RED</h4>
-                <div className="flex items-center gap-2 mb-3">
-                  <Wifi className="w-5 h-5" />
-                  <p className="text-lg font-black uppercase">SINCRONIZADO</p>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-3 bg-white/20 rounded-2xl">
+                    <Wifi className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-black uppercase tracking-tight">SYSTEM ACTIVE</h4>
+                    <p className="text-[9px] font-black uppercase opacity-60">Sincronización Regional OK</p>
+                  </div>
                 </div>
-                <p className="text-[10px] font-bold opacity-80 uppercase leading-relaxed tracking-tight">
-                  LATENCIA: 42MS • SERVIDORES: OK • CLUSTERS: ACTIVE
-                </p>
+                <div className="flex gap-6 mt-8">
+                  <div className="flex flex-col">
+                    <span className="text-[8px] font-black opacity-60 uppercase mb-1">Latencia</span>
+                    <span className="text-sm font-black tracking-tighter">42 MS</span>
+                  </div>
+                  <div className="flex flex-col border-l border-white/20 pl-6">
+                    <span className="text-[8px] font-black opacity-60 uppercase mb-1">Status</span>
+                    <span className="text-sm font-black tracking-tighter">OPTIMAL</span>
+                  </div>
+                </div>
                </div>
             </div>
           </div>
         )}
       </div>
 
-      <div className="p-4 bg-white dark:bg-[#0a0a0a] border-t border-slate-200 dark:border-white/10 flex items-center justify-around pb-8 sticky bottom-0 z-40">
+      {/* Staff Nav Bottom */}
+      <div className={`p-4 border-t flex items-center justify-around pb-12 sticky bottom-0 z-40 transition-colors duration-500 ${headerBg}`}>
         <button 
           onClick={() => setView('scan')} 
-          className={`flex flex-col items-center gap-1.5 transition-all ${view === 'scan' ? 'text-blue-500 scale-110' : 'text-slate-400'}`}
+          className={`flex flex-col items-center gap-2 group transition-all ${view === 'scan' ? 'text-blue-500 scale-110' : textSecondary}`}
         >
-          <div className={`p-2 rounded-xl ${view === 'scan' ? 'bg-blue-50 dark:bg-blue-500/10' : ''}`}><QrCode size={22} /></div>
-          <span className="text-[8px] font-black uppercase tracking-[0.2em]">Cámara</span>
+          <div className={`p-4 rounded-[28px] border transition-all ${view === 'scan' ? 'bg-blue-600 text-white border-blue-600 shadow-xl' : 'bg-transparent border-transparent group-active:bg-slate-500/10'}`}>
+            <QrCode size={24} />
+          </div>
+          <span className="text-[9px] font-black uppercase tracking-[0.2em]">Cámara</span>
         </button>
         <button 
           onClick={() => setView('history')} 
-          className={`flex flex-col items-center gap-1.5 transition-all ${view === 'history' ? 'text-blue-500 scale-110' : 'text-slate-400'}`}
+          className={`flex flex-col items-center gap-2 group transition-all ${view === 'history' ? 'text-blue-500 scale-110' : textSecondary}`}
         >
-          <div className={`p-2 rounded-xl ${view === 'history' ? 'bg-blue-50 dark:bg-blue-500/10' : ''}`}><History size={22} /></div>
-          <span className="text-[8px] font-black uppercase tracking-[0.2em]">Auditar</span>
+          <div className={`p-4 rounded-[28px] border transition-all ${view === 'history' ? 'bg-blue-600 text-white border-blue-600 shadow-xl' : 'bg-transparent border-transparent group-active:bg-slate-500/10'}`}>
+            <History size={24} />
+          </div>
+          <span className="text-[9px] font-black uppercase tracking-[0.2em]">Auditar</span>
         </button>
         <button 
           onClick={() => setView('dashboard')} 
-          className={`flex flex-col items-center gap-1.5 transition-all ${view === 'dashboard' ? 'text-blue-500 scale-110' : 'text-slate-400'}`}
+          className={`flex flex-col items-center gap-2 group transition-all ${view === 'dashboard' ? 'text-blue-500 scale-110' : textSecondary}`}
         >
-          <div className={`p-2 rounded-xl ${view === 'dashboard' ? 'bg-blue-50 dark:bg-blue-500/10' : ''}`}><LayoutDashboard size={22} /></div>
-          <span className="text-[8px] font-black uppercase tracking-[0.2em]">Stats</span>
+          <div className={`p-4 rounded-[28px] border transition-all ${view === 'dashboard' ? 'bg-blue-600 text-white border-blue-600 shadow-xl' : 'bg-transparent border-transparent group-active:bg-slate-500/10'}`}>
+            <LayoutDashboard size={24} />
+          </div>
+          <span className="text-[9px] font-black uppercase tracking-[0.2em]">Stats</span>
         </button>
       </div>
     </div>
