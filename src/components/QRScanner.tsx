@@ -7,8 +7,7 @@ interface QRScannerProps {
   active: boolean;
 }
 
-// Accessing the global library loaded via script tag in index.html
-declare var Html5Qrcode: any;
+import { Html5Qrcode } from 'html5-qrcode';
 
 export const QRScanner: React.FC<QRScannerProps> = ({ onScan, active }) => {
   const [error, setError] = useState<string | null>(null);

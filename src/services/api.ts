@@ -6,10 +6,10 @@
 const API_URL = '/api';
 
 export const api = {
-    async login(pin: string) {
+    async login(credentials: { pin?: string; name?: string; email?: string }) {
         const res = await fetch(`${API_URL}/login.php`, {
             method: 'POST',
-            body: JSON.stringify({ pin }),
+            body: JSON.stringify(credentials),
         });
         return res.json();
     },
